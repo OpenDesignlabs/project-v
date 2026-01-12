@@ -19,7 +19,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'root': {
                 id: 'root', type: 'container', name: 'Pricing Card',
                 children: ['t-title', 't-price', 't-features', 't-btn'],
-                props: { className: 'p-8 bg-white border border-slate-200 rounded-2xl shadow-xl w-72 flex flex-col gap-4 hover:border-blue-500 transition-colors' }
+                props: { layoutMode: 'flex', className: 'p-8 bg-white border border-slate-200 rounded-2xl shadow-xl w-72 flex flex-col gap-4 hover:border-blue-500 transition-colors' }
             },
             't-title': {
                 id: 't-title', type: 'text', name: 'Plan Name', content: 'Pro Plan',
@@ -49,12 +49,12 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'hero-root': {
                 id: 'hero-root', type: 'container', name: 'Hero Section',
                 children: ['hero-content'],
-                props: { className: 'w-full py-20 px-8 flex justify-center bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl' }
+                props: { layoutMode: 'flex', className: 'w-full py-20 px-8 flex justify-center bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl' }
             },
             'hero-content': {
                 id: 'hero-content', type: 'container', name: 'Content',
                 children: ['hero-badge', 'hero-title', 'hero-subtitle', 'hero-buttons'],
-                props: { className: 'text-center max-w-3xl flex flex-col items-center gap-6' }
+                props: { layoutMode: 'flex', className: 'text-center max-w-3xl flex flex-col items-center gap-6' }
             },
             'hero-badge': {
                 id: 'hero-badge', type: 'text', name: 'Badge', content: '🚀 New Release',
@@ -71,7 +71,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'hero-buttons': {
                 id: 'hero-buttons', type: 'container', name: 'Buttons',
                 children: ['hero-cta', 'hero-secondary'],
-                props: { className: 'flex gap-4 mt-4' }
+                props: { layoutMode: 'flex', className: 'flex gap-4 mt-4' }
             },
             'hero-cta': {
                 id: 'hero-cta', type: 'button', name: 'CTA', content: 'Start Building Free',
@@ -93,7 +93,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'nav-root': {
                 id: 'nav-root', type: 'container', name: 'Navbar',
                 children: ['nav-logo', 'nav-links', 'nav-btn'],
-                props: { className: 'w-full h-16 flex items-center justify-between px-6 bg-white border-b border-slate-200 shadow-sm' }
+                props: { layoutMode: 'flex', className: 'w-full h-16 flex items-center justify-between px-6 bg-white border-b border-slate-200 shadow-sm' }
             },
             'nav-logo': {
                 id: 'nav-logo', type: 'text', name: 'Logo', content: '⚡ VECTRA',
@@ -102,7 +102,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'nav-links': {
                 id: 'nav-links', type: 'container', name: 'Links',
                 children: ['nav-l1', 'nav-l2', 'nav-l3'],
-                props: { className: 'flex gap-8' }
+                props: { layoutMode: 'flex', className: 'flex gap-8' }
             },
             'nav-l1': {
                 id: 'nav-l1', type: 'text', name: 'Link 1', content: 'Features',
@@ -132,7 +132,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'db-root': {
                 id: 'db-root', type: 'container', name: 'Sidebar',
                 children: ['db-logo', 'db-nav', 'db-footer'],
-                props: { className: 'w-64 min-h-[400px] bg-slate-900 text-white p-6 flex flex-col gap-6 rounded-xl' }
+                props: { layoutMode: 'flex', className: 'w-64 min-h-[400px] bg-slate-900 text-white p-6 flex flex-col gap-6 rounded-xl' }
             },
             'db-logo': {
                 id: 'db-logo', type: 'text', name: 'Logo', content: '⬡ DASHBOARD',
@@ -141,7 +141,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'db-nav': {
                 id: 'db-nav', type: 'container', name: 'Navigation',
                 children: ['db-l1', 'db-l2', 'db-l3', 'db-l4'],
-                props: { className: 'flex flex-col gap-1 flex-1' }
+                props: { layoutMode: 'flex', className: 'flex flex-col gap-1 flex-1' }
             },
             'db-l1': {
                 id: 'db-l1', type: 'text', name: 'Link 1', content: '📊 Overview',
@@ -175,7 +175,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'test-root': {
                 id: 'test-root', type: 'container', name: 'Testimonial Card',
                 children: ['test-stars', 'test-quote', 'test-author'],
-                props: { className: 'p-6 bg-white border border-slate-200 rounded-xl w-80 shadow-lg hover:shadow-xl transition-shadow' }
+                props: { layoutMode: 'flex', className: 'p-6 bg-white border border-slate-200 rounded-xl w-80 shadow-lg hover:shadow-xl transition-shadow' }
             },
             'test-stars': {
                 id: 'test-stars', type: 'text', name: 'Stars', content: '★★★★★',
@@ -201,7 +201,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'team-root': {
                 id: 'team-root', type: 'container', name: 'Team Card',
                 children: ['team-avatar', 'team-name', 'team-role', 'team-social'],
-                props: { className: 'p-6 bg-white border border-slate-200 rounded-xl w-56 flex flex-col items-center text-center shadow-lg hover:border-blue-500 transition-colors' }
+                props: { layoutMode: 'flex', className: 'p-6 bg-white border border-slate-200 rounded-xl w-56 flex flex-col items-center text-center shadow-lg hover:border-blue-500 transition-colors' }
             },
             'team-avatar': {
                 id: 'team-avatar', type: 'container', name: 'Avatar',
@@ -232,7 +232,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'form-root': {
                 id: 'form-root', type: 'container', name: 'Contact Form',
                 children: ['form-title', 'form-desc', 'form-email', 'form-message', 'form-submit'],
-                props: { className: 'p-8 bg-white border border-slate-200 rounded-xl w-96 flex flex-col gap-4 shadow-xl' }
+                props: { layoutMode: 'flex', className: 'p-8 bg-white border border-slate-200 rounded-xl w-96 flex flex-col gap-4 shadow-xl' }
             },
             'form-title': {
                 id: 'form-title', type: 'text', name: 'Form Title', content: 'Get in Touch',
@@ -266,7 +266,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'feat-root': {
                 id: 'feat-root', type: 'container', name: 'Feature Card',
                 children: ['feat-icon', 'feat-title', 'feat-desc'],
-                props: { className: 'p-6 bg-white border border-slate-200 rounded-xl w-72 flex flex-col gap-3 hover:border-blue-500 hover:shadow-lg transition-all' }
+                props: { layoutMode: 'flex', className: 'p-6 bg-white border border-slate-200 rounded-xl w-72 flex flex-col gap-3 hover:border-blue-500 hover:shadow-lg transition-all' }
             },
             'feat-icon': {
                 id: 'feat-icon', type: 'container', name: 'Icon',
@@ -293,7 +293,7 @@ export const TEMPLATES: Record<string, TemplateDefinition> = {
             'stats-root': {
                 id: 'stats-root', type: 'container', name: 'Stats Card',
                 children: ['stats-value', 'stats-label', 'stats-change'],
-                props: { className: 'p-6 bg-white border border-slate-200 rounded-xl w-48 flex flex-col shadow-lg' }
+                props: { layoutMode: 'flex', className: 'p-6 bg-white border border-slate-200 rounded-xl w-48 flex flex-col shadow-lg' }
             },
             'stats-value': {
                 id: 'stats-value', type: 'text', name: 'Value', content: '$12.4k',

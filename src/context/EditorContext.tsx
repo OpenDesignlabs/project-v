@@ -25,7 +25,7 @@ interface EditorContextType {
     setDragData: (data: DragData | null) => void;
     interaction: InteractionState | null;
     setInteraction: React.Dispatch<React.SetStateAction<InteractionState | null>>;
-    handleInteractionMove: (e: MouseEvent) => void;
+    handleInteractionMove: (e: PointerEvent) => void;
     guides: Guide[];
     assets: Asset[];
     addAsset: (file: File) => void;
@@ -43,11 +43,7 @@ const EditorContext = createContext<EditorContextType | undefined>(undefined);
 export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     // State
     const [elements, setElements] = useState<VectraProject>(() => {
-        try {
-            return JSON.parse(localStorage.getItem('vectra_design_v50') || 'null') || INITIAL_DATA;
-        } catch {
-            return INITIAL_DATA;
-        }
+        try { return JSON.parse(localStorage.getItem('vectra_design_v50') || 'null') || INITIAL_DATA; } catch { return INITIAL_DATA; }
     });
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -125,69 +121,163 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setActivePageId('page-home');
     };
 
-    const handleInteractionMove = useCallback((e: MouseEvent) => {
+    // Updated Handler for PointerEvent
+    const handleInteractionMove = useCallback((e: PointerEvent) => {
         if (!interaction) return;
         const { type, itemId, startX, startY, startRect, handle } = interaction;
+
         const deltaX = (e.clientX - startX) / zoom;
         const deltaY = (e.clientY - startY) / zoom;
 
         const newRect = { ...startRect };
         let newGuides: Guide[] = [];
 
+        // Identify snap targets (siblings)
+        const parentId = Object.keys(elements).find(k => elements[k].children?.includes(itemId));
+        const siblings = parentId ? elements[parentId].children || [] : [];
+        const snapTargets = siblings
+            .filter(id => id !== itemId)
+            .map(id => elements[id])
+            .filter(el => el && !el.hidden && el.props.style?.position === 'absolute');
+
+        const THRESHOLD = 5;
+
+        // --- MOVE LOGIC ---
         if (type === 'MOVE') {
             let proposedLeft = startRect.left + deltaX;
             let proposedTop = startRect.top + deltaY;
-
-            const parentId = Object.keys(elements).find(k => elements[k].children?.includes(itemId));
-            const siblings = parentId ? elements[parentId].children || [] : [];
-            const snapTargets = siblings.filter(id => id !== itemId).map(id => elements[id]).filter(el => el && !el.hidden && el.props.style?.position === 'absolute');
-            const THRESHOLD = 5;
-
             let snappedX = false;
+            let snappedY = false;
+
+            // X-Axis Snap (Left, Right, Center)
             for (const target of snapTargets) {
                 const tLeft = parseFloat(String(target.props.style?.left || 0));
                 const tWidth = parseFloat(String(target.props.style?.width || 0));
-                if (Math.abs(proposedLeft - tLeft) < THRESHOLD) { proposedLeft = tLeft; snappedX = true; newGuides.push({ type: 'vertical', pos: tLeft }); break; }
-                if (Math.abs(proposedLeft - (tLeft + tWidth)) < THRESHOLD) { proposedLeft = tLeft + tWidth; snappedX = true; newGuides.push({ type: 'vertical', pos: tLeft + tWidth }); break; }
+                const tRight = tLeft + tWidth;
+                const tCenter = tLeft + tWidth / 2;
+
+                const myWidth = startRect.width;
+                const myRight = proposedLeft + myWidth;
+                const myCenterX = proposedLeft + myWidth / 2;
+
+                if (Math.abs(proposedLeft - tLeft) < THRESHOLD) { proposedLeft = tLeft; snappedX = true; newGuides.push({ type: 'vertical', pos: tLeft }); }
+                else if (Math.abs(proposedLeft - tRight) < THRESHOLD) { proposedLeft = tRight; snappedX = true; newGuides.push({ type: 'vertical', pos: tRight }); }
+                else if (Math.abs(myRight - tLeft) < THRESHOLD) { proposedLeft = tLeft - myWidth; snappedX = true; newGuides.push({ type: 'vertical', pos: tLeft }); }
+                else if (Math.abs(myRight - tRight) < THRESHOLD) { proposedLeft = tRight - myWidth; snappedX = true; newGuides.push({ type: 'vertical', pos: tRight }); }
+                else if (Math.abs(myCenterX - tCenter) < THRESHOLD) { proposedLeft = tCenter - myWidth / 2; snappedX = true; newGuides.push({ type: 'vertical', pos: tCenter }); }
+
+                if (snappedX) break;
             }
 
-            let snappedY = false;
+            // Y-Axis Snap
             for (const target of snapTargets) {
                 const tTop = parseFloat(String(target.props.style?.top || 0));
                 const tHeight = parseFloat(String(target.props.style?.height || 0));
-                if (Math.abs(proposedTop - tTop) < THRESHOLD) { proposedTop = tTop; snappedY = true; newGuides.push({ type: 'horizontal', pos: tTop }); break; }
-                if (Math.abs(proposedTop - (tTop + tHeight)) < THRESHOLD) { proposedTop = tTop + tHeight; snappedY = true; newGuides.push({ type: 'horizontal', pos: tTop + tHeight }); break; }
+                const tBottom = tTop + tHeight;
+                const tCenter = tTop + tHeight / 2;
+
+                const myHeight = startRect.height;
+                const myBottom = proposedTop + myHeight;
+                const myCenterY = proposedTop + myHeight / 2;
+
+                if (Math.abs(proposedTop - tTop) < THRESHOLD) { proposedTop = tTop; snappedY = true; newGuides.push({ type: 'horizontal', pos: tTop }); }
+                else if (Math.abs(proposedTop - tBottom) < THRESHOLD) { proposedTop = tBottom; snappedY = true; newGuides.push({ type: 'horizontal', pos: tBottom }); }
+                else if (Math.abs(myBottom - tTop) < THRESHOLD) { proposedTop = tTop - myHeight; snappedY = true; newGuides.push({ type: 'horizontal', pos: tTop }); }
+                else if (Math.abs(myBottom - tBottom) < THRESHOLD) { proposedTop = tBottom - myHeight; snappedY = true; newGuides.push({ type: 'horizontal', pos: tBottom }); }
+                else if (Math.abs(myCenterY - tCenter) < THRESHOLD) { proposedTop = tCenter - myHeight / 2; snappedY = true; newGuides.push({ type: 'horizontal', pos: tCenter }); }
+
+                if (snappedY) break;
             }
 
             if (!snappedX) newRect.left = Math.round(proposedLeft / 10) * 10; else newRect.left = proposedLeft;
             if (!snappedY) newRect.top = Math.round(proposedTop / 10) * 10; else newRect.top = proposedTop;
 
+            // --- RESIZE LOGIC WITH SNAP ---
         } else if (type === 'RESIZE' && handle) {
-            if (handle.includes('e')) newRect.width = Math.max(20, startRect.width + deltaX);
-            if (handle.includes('w')) { newRect.width = Math.max(20, startRect.width - deltaX); newRect.left = startRect.left + deltaX; }
-            if (handle.includes('s')) newRect.height = Math.max(20, startRect.height + deltaY);
-            if (handle.includes('n')) { newRect.height = Math.max(20, startRect.height - deltaY); newRect.top = startRect.top + deltaY; }
+
+            const snapValue = (val: number, isVertical: boolean): number | null => {
+                for (const target of snapTargets) {
+                    const tLeft = parseFloat(String(target.props.style?.left || 0));
+                    const tTop = parseFloat(String(target.props.style?.top || 0));
+                    const tWidth = parseFloat(String(target.props.style?.width || 0));
+                    const tHeight = parseFloat(String(target.props.style?.height || 0));
+
+                    const targets = isVertical
+                        ? [tLeft, tLeft + tWidth]
+                        : [tTop, tTop + tHeight];
+
+                    for (const t of targets) {
+                        if (Math.abs(val - t) < THRESHOLD) {
+                            newGuides.push({ type: isVertical ? 'vertical' : 'horizontal', pos: t });
+                            return t;
+                        }
+                    }
+                }
+                return null;
+            };
+
+            if (handle.includes('e')) {
+                let newWidth = Math.max(20, startRect.width + deltaX);
+                const proposedRight = startRect.left + newWidth;
+                const snappedRight = snapValue(proposedRight, true);
+                if (snappedRight !== null) newWidth = snappedRight - startRect.left;
+                newRect.width = newWidth;
+            }
+            if (handle.includes('w')) {
+                let proposedLeft = startRect.left + deltaX;
+                const snappedLeft = snapValue(proposedLeft, true);
+                if (snappedLeft !== null) proposedLeft = snappedLeft;
+
+                const widthChange = startRect.left - proposedLeft;
+                newRect.width = Math.max(20, startRect.width + widthChange);
+                newRect.left = proposedLeft;
+            }
+
+            if (handle.includes('s')) {
+                let newHeight = Math.max(20, startRect.height + deltaY);
+                const proposedBottom = startRect.top + newHeight;
+                const snappedBottom = snapValue(proposedBottom, false);
+                if (snappedBottom !== null) newHeight = snappedBottom - startRect.top;
+                newRect.height = newHeight;
+            }
+            if (handle.includes('n')) {
+                let proposedTop = startRect.top + deltaY;
+                const snappedTop = snapValue(proposedTop, false);
+                if (snappedTop !== null) proposedTop = snappedTop;
+
+                const heightChange = startRect.top - proposedTop;
+                newRect.height = Math.max(20, startRect.height + heightChange);
+                newRect.top = proposedTop;
+            }
         }
 
         setGuides(newGuides);
 
-        setElements(prev => ({
-            ...prev,
-            [itemId]: {
-                ...prev[itemId],
-                props: {
-                    ...prev[itemId].props,
-                    style: {
-                        ...prev[itemId].props.style,
-                        position: 'absolute',
-                        left: `${newRect.left}px`,
-                        top: `${newRect.top}px`,
-                        width: `${newRect.width}px`,
-                        height: `${newRect.height}px`
+        setElements(prev => {
+            const currentStyle = prev[itemId].props.style || {};
+            const nextStyle: React.CSSProperties = {
+                ...currentStyle,
+                position: 'absolute',
+                left: `${newRect.left}px`,
+                top: `${newRect.top}px`
+            };
+
+            if (type === 'RESIZE') {
+                nextStyle.width = `${newRect.width}px`;
+                nextStyle.height = `${newRect.height}px`;
+            }
+
+            return {
+                ...prev,
+                [itemId]: {
+                    ...prev[itemId],
+                    props: {
+                        ...prev[itemId].props,
+                        style: nextStyle
                     }
                 }
-            }
-        }));
+            };
+        });
     }, [interaction, zoom, elements]);
 
     useEffect(() => { if (!interaction) setGuides([]); }, [interaction]);
@@ -195,7 +285,6 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // History & Update Logic
     const updateProject = useCallback((newElements: VectraProject) => {
         setElements(newElements);
-
         setHistoryStack(prev => {
             const newHistory = prev.slice(0, historyIndex + 1);
             if (newHistory.length >= 50) newHistory.shift();
@@ -221,18 +310,13 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const deleteElement = useCallback((id: string) => {
         if (['application-root', 'page-home', 'main-canvas'].includes(id)) return;
-
-        // CRITICAL: Deep clone entire elements tree to avoid history mutation issues
         const newElements = JSON.parse(JSON.stringify(elements));
-
         Object.keys(newElements).forEach(key => {
             if (newElements[key].children?.includes(id)) {
                 newElements[key].children = newElements[key].children.filter((cid: string) => cid !== id);
             }
         });
-
         delete newElements[id];
-
         updateProject(newElements);
         setSelectedId(null);
     }, [elements, updateProject]);
