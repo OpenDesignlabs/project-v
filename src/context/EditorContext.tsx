@@ -91,9 +91,38 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const canvasId = `canvas-${Date.now()}`;
         const newElements = { ...elements };
 
-        newElements[pageId] = { id: pageId, type: 'page', name: name, children: [canvasId], props: { className: 'w-full min-h-full flex flex-col items-center justify-center p-8 bg-slate-100' } };
-        newElements[canvasId] = { id: canvasId, type: 'canvas', name: 'Artboard', children: [], props: { className: 'w-[800px] h-[600px] bg-white rounded-lg border border-slate-200 relative overflow-hidden shadow-2xl' } };
+        // 1. Create the Infinite Page Container
+        newElements[pageId] = {
+            id: pageId,
+            type: 'page',
+            name: name,
+            children: [canvasId],
+            props: {
+                layoutMode: 'canvas',
+                className: 'w-full h-full relative',
+                style: { width: '100%', height: '100%' }
+            }
+        };
 
+        // 2. Add Default Desktop Artboard inside it
+        newElements[canvasId] = {
+            id: canvasId,
+            type: 'canvas',
+            name: 'Artboard 1',
+            children: [],
+            props: {
+                className: 'bg-white shadow-xl relative overflow-hidden',
+                style: {
+                    position: 'absolute',
+                    left: '100px',
+                    top: '100px',
+                    width: '1440px',
+                    height: '1024px'
+                }
+            }
+        };
+
+        // Add to Root App
         if (newElements['application-root']) {
             newElements['application-root'] = {
                 ...newElements['application-root'],

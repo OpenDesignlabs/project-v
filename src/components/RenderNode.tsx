@@ -35,7 +35,10 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId }) => {
     const isParentFlex = parent?.props.layoutMode === 'flex';
     const canMove = !isParentFlex && isAbsolute && activeTool === 'select';
 
+    // --- HANDLERS ---
+
     const handlePointerDown = (e: React.PointerEvent) => {
+        // 1. Stop propagation to prevent selecting the Page behind the Frame
         e.stopPropagation();
 
         if (isLocked || previewMode) {
@@ -50,17 +53,15 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId }) => {
             return;
         }
 
-        if (['canvas', 'page', 'app'].includes(element.type)) return;
+        // 2. CRITICAL FIX: Allow 'canvas' (Frames) to be moved, but lock 'page' and 'app'
+        if (['page', 'app'].includes(element.type)) return;
+
+        // 3. Ensure we can move it
         if (!canMove) return;
 
-        // CRITICAL: POINTER CAPTURE FOR MOVING
-        // Keeps drag active even if mouse leaves window
         e.currentTarget.setPointerCapture(e.pointerId);
 
-        // Calculate size carefully to prevent jumping
-        let currentWidth = 0;
-        let currentHeight = 0;
-
+        let currentWidth = 0, currentHeight = 0;
         if (nodeRef.current) {
             const rect = nodeRef.current.getBoundingClientRect();
             currentWidth = rect.width / zoom;
@@ -96,19 +97,22 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId }) => {
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         e.stopPropagation();
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            (e.currentTarget as HTMLElement).blur();
-        }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.currentTarget as HTMLElement).blur(); }
     };
 
     const handleDrop = (e: React.DragEvent) => {
-        e.stopPropagation(); e.preventDefault(); e.currentTarget.classList.remove('ring-2', 'ring-blue-400', 'ring-inset', 'bg-blue-50/30');
+        // Allow dropping Frames onto the Page (bubbling up to Canvas)
+        if (element.type === 'page' && dragData?.payload === 'canvas') return;
+
+        e.stopPropagation();
+        e.preventDefault();
+        e.currentTarget.classList.remove('ring-2', 'ring-blue-400', 'ring-inset', 'bg-blue-50/30');
         if (!dragData || !isContainer || isLocked || previewMode) return;
 
         let newStyle: React.CSSProperties = {};
-        if (element.props.layoutMode === 'flex') newStyle = { position: 'relative', width: '100%', height: 'auto' };
-        else {
+        if (element.props.layoutMode === 'flex') {
+            newStyle = { position: 'relative', width: '100%', height: 'auto' };
+        } else {
             const rect = nodeRef.current?.getBoundingClientRect();
             if (!rect) return;
             const rawX = (e.clientX - rect.left) / zoom;
@@ -122,9 +126,19 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId }) => {
             newRootId = `el-${Date.now()}`;
             const config = COMPONENT_TYPES[dragData.payload];
             if (config) {
+                let defaultWidth = '150px';
+                let defaultHeight = 'auto';
+                if (dragData.payload === 'canvas') { defaultWidth = '800px'; defaultHeight = '600px'; }
+                else if (dragData.payload === 'container') { defaultWidth = '200px'; defaultHeight = '150px'; }
+                else if (dragData.payload === 'button') { defaultWidth = '120px'; defaultHeight = '40px'; }
+
                 newNodes[newRootId] = {
                     id: newRootId, type: dragData.payload, name: config.label, content: config.defaultContent, src: config.src, children: [],
-                    props: { ...config.defaultProps, layoutMode: dragData.payload === 'container' ? 'flex' : undefined, style: { ...(config.defaultProps?.style || {}), ...newStyle } }
+                    props: {
+                        ...config.defaultProps,
+                        layoutMode: dragData.payload === 'container' ? 'flex' : undefined,
+                        style: { ...(config.defaultProps?.style || {}), ...newStyle, width: defaultWidth, height: defaultHeight }
+                    }
                 };
             }
         } else if (dragData.type === 'TEMPLATE') {
@@ -145,6 +159,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId }) => {
         setDragData(null);
     };
 
+    // --- RENDER ---
     let content = null;
     const showEditable = isEditing && activeTool === 'type';
 
@@ -153,14 +168,19 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId }) => {
     } else if (element.type === 'input') {
         content = <input className="w-full h-full bg-transparent outline-none pointer-events-none" placeholder={element.props.placeholder} readOnly />;
     } else if (element.type === 'image') {
-        content = <img className="w-full h-full object-cover pointer-events-none" src={element.src || 'https://via.placeholder.com/150'} alt="" />;
+        content = <img className="w-full h-full object-cover pointer-events-none" src={element.src || 'https://via.placeholder.com/150'} alt="" draggable={false} />;
     } else if (element.type === 'icon') {
         const IconCmp = getIconByName(element.props.iconName || 'Star');
         content = <div className="w-full h-full flex items-center justify-center"><IconCmp size={element.props.iconSize || 24} className={element.props.iconClassName || 'text-slate-700'} /></div>;
     } else {
         content = (
             <>
-                {element.type === 'canvas' && !previewMode && <div className="absolute top-0 right-0 bg-blue-100 text-blue-600 text-[10px] px-3 py-1 rounded-bl-lg pointer-events-none z-0 font-medium">{element.props.layoutMode === 'flex' ? 'Auto Layout' : 'Artboard'}</div>}
+                {/* Frame Label */}
+                {element.type === 'canvas' && !previewMode && (
+                    <div className="absolute top-0 left-0 bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-br border-b border-r border-slate-200 pointer-events-none z-10 font-medium">
+                        {element.name}
+                    </div>
+                )}
                 {element.children?.map(childId => <RenderNode key={childId} elementId={childId} />)}
             </>
         );
