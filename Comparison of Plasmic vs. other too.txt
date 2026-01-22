@@ -1,0 +1,144 @@
+Comparison of Plasmic vs. other tools
+Plasmic vs. internal tool builders
+Examples: Retool, Appsmith, Budibase, Tooljet, Superblocks, internal.io.
+
+These are useful for quickly slapping together the frontends for internal dashboards and tools.
+
+Like Plasmic:
+
+They focus on quickly building app frontends.
+They connect to your own backend data sources.
+However, some key differences:
+
+They are restricted to their own set of components, or have only very basic capability of adding custom components, and components must target the specific platform.
+They are restricted to their own set of data and backend integrations.
+They deploy apps within their hosting platform, and as standalone apps not integrated within other environments.
+They lack the ability to customize the visual design and layout beyond basic controls.
+They focus on very simple frontends, and do not scale in complexity.
+They cater to developers, and don’t serve non-coders on the team who can’t fill in code.
+They do not integrate with your full codebase, and as with all low-code tools, you are ultimately limited by what you can express natively in the platform.
+Plasmic vs. no-code app builders
+Examples: PowerApps, Bubble, Glide, Softr, Stacker, AppSheet, Airtable, Adalo, WeWeb.
+
+These are useful for creating user-facing external apps.
+
+Like Plasmic, they focus on quickly building app frontends.
+
+However, some key differences:
+
+They are restricted to their own set of components, or have only very basic capability of adding custom components, and components must target the specific platform.
+They are restricted to their own set of data and backend integrations. Often, this set is particularly limited (compared with internal tool builders), and priority is given to the built-in database.
+They deploy apps within their hosting platform, and as standalone apps not integrated within other environments.
+They often lack the ability to fully customize the visual design.
+They focus on very simple frontends, and do not scale in complexity. Some scale to “moderate” complexity.
+They often overlook the full development lifecycle, such as development vs. preview vs. production environments, branching, and multi-workspace collaboration.
+They do not integrate with your full codebase, and as with all low-code tools, you are ultimately limited by what you can express natively in the platform.
+And in the other direction:
+
+Plasmic does not yet support a built-in database. It currently prioritizes connecting with your own data sources, whether they’re in Google Sheets or Postgresql or Shopify or a REST API.
+Plasmic vs. drag-and-drop site/page builders
+Examples: Wix, Webflow, Squarespace, Framer, Shopify, Shogun, PageFly, Unbounce, Instapage, HubSpot.
+
+These are end-to-end platforms. They can work well for simple sites, but some organizations need more control:
+
+You are stuck if you want to do something you cannot do within their page builder—whether it’s about having the right set of building blocks, having full design control, or connecting to your data backends.
+They control the hosting, deployment, staging/production/preview environments, etc.
+You can’t set up your own building blocks for your team to consistently use—instead, creators are given full freedom, which may not be desirable.
+Sometimes, what an organization needs is less of a free-form page builder and more of a content management system that integrates with a codebase.
+Concretely, Plasmic’s greater flexibility lets you:
+
+Use any custom components from your codebase or from npm.
+Restrict editors to using specific components for your page sections and design system.
+Integrate flexibly and incrementally with existing codebases and development teams.
+Maintain freedom over choice of hosting, CMS, SEO, analytics, frameworks, CI/CD, and your general tech stack.
+Build arbitrarily complex applications and websites (such as Plasmic itself, which is built in Plasmic). Plasmic is designed to work seamlessly with custom code.
+Beyond these, Plasmic as a page builder and web design tool has a very rich set of features not found in most other tools, such as:
+
+Multiplayer.
+Branching/approvals.
+Interactions (full stateful behavior beyond animations).
+Components, with variants and slots.
+Best-in-class layout system (that doesn’t just throw all of CSS layout at you).
+Style tokens (reusable style values) and style presets.
+Design simultaneously across multiple screen sizes and variants.
+High performance and high quality code generation.
+Plasmic vs. headless structured content management systems (CMSes)
+Examples: Contentful, Sanity.io, Strapi, Hygraph, Prismic, Storyblok.
+
+Plasmic includes a (headless) CMS for structured content/data, like a set of blog posts, testimonials, products, etc.
+
+Whether you use the built-in CMS or another CMS, Plasmic’s visual page builder complements CMSes, rather than replaces them. You can manage your blog posts in a CMS, while designing your landing pages in Plasmic. With code components, you can drop in a section that renders those blog posts or other data from your CMS (or any other data source, such as a Shopify product catalog). You can even design your blog page template in Plasmic.
+
+Plasmic partners and integrates with headless CMSes including Contentful, Sanity, Strapi, and Hygraph.
+
+Sometimes, headless CMSes are used to also build pages. Some CMSes, such as Prismic and Storyblok, market “visual editors” that let you preview the page you are building.
+
+Regardless, these ultimately work the same way fundamentally:
+
+Developers must create a schema representing the different possible configurable sections of a landing page.
+Developers must code up the template sections that these will render as.
+Content editors must build the pages using this schema of nested forms. (Sometimes this is from a sidebar next to the main pane where a preview of the page is shown—this is as far as “visual editing” goes.)
+Plasmic can be used in this way as well—it lets you drag and drop code components/sections authored in your codebase, so you can use it as a “section configurer” as well (including restricting editors to this). However, Plasmic provides a superset of this functionality, since unlike CMSes, it is a true no-code platform.
+
+Some of the implications of the headless CMS approach to page-building:
+
+Your pages must be 100% authored in code by developers, as template-ized building blocks. This means more code to write, maintain, and update. Plus the need to understand page performance best practices, animations/interactive effects, and more. For things like landing pages, this tends to be highly rote and undifferentiated work.
+Developers must design a schema that balances giving the marketer enough flexibility to express the page they want, while managing the complexity/usability of the page builder. And then developers must write an interpreter for this structured data to render it into markup. (For instance, how to design a schema that lets you build a page that contains a section that contains an accordion that contains a paragraph with an inline CTA button that opens up a modal.) Developers are effectively implementing a page builder—one where users are filling out nested abstract forms to build the page.
+Content editors must be trained to think and work in this way—filling out nested abstract forms to compose the sections of a page, and learning about the quirks of any particular schema.
+If you want to make even simple changes like introducing an extra call-to-action or tweaking some layout—let alone bigger changes, like a new style of landing page—this all lands at developers’ feet and must wait for development cycles to ship.
+Sometimes dev teams invest in building extensions for the CMS platform to make it easier to build pages for their specific site on top of the provided built-in abstractions.
+On the other hand, Plasmic is a true no-code platform, meaning non-developers can make free-form content changes without code (while guardrails can still be provided). Add a Plasmic API call from your site’s codebase, and from then on, content teams can directly publish pages or parts of pages. The editing experience is visual and intuitive, and requires no schemas, templates, or developer involvement. This fits especially well with designing pages that have responsiveness, flexible layouts, interactions/effects, and so on.
+
+If you do want to give content editors a simplified and more restricted editing experience, you can use Plasmic’s “content creator mode,” which offers a simplified visual editor and restricts page-building to using the existing components (whether code components or Plasmic components!). Plasmic has a sliding scale that lets you offer a spectrum between this “locked-down, CMS-ish page editor” and “full-power no-code tool.” It furthermore lets you mix-and-match—for instance, maybe for certain pages on your site, you want to enforce more stringent design consistency, but for net-new landing pages you want to enable free-form design.
+
+Plasmic vs. vector drawing tools
+Examples: Figma, XD, Sketch.
+
+These are great vector drawing tools for exploratory design and mock-ups. You can use them together with Plasmic—when your designs are settled and you would normally hand things off to developers, you can instead build them in Plasmic. For Figma specifically, Plasmic provides a Figma importer.
+
+Plasmic is not as polished as dedicated vector drawing tools for creating pure design mock-ups. The main reason is that Plasmic is not yet as fast at raw editing speed and control for creating low-level primitives.
+
+However, Plasmic does have powerful abstractions (how it represents components, slots, variants, tokens, style presets) that can let you work as fast or even faster than relying on direct manipulation, especially once you have an established design system in place, and especially for non-exploratory production work. For instance, once you have your main components and sections established, it’s often much faster to just create a new page in Plasmic directly using these building blocks, rather than to first mock it up in a design tool and then convert the work to production.
+
+Plasmic as a design tool has a number of other advantages as well:
+
+With code components, use your real design system from your codebase, use production data, or add arbitrary interactive effects.
+Take designs all the way from mock-ups to production. Publish directly and eliminate handoffs.
+What you see is guaranteed to be what you get in production. Design within the real constraints and capabilities of the final medium.
+Build rich, responsive designs with a full set of layout features. Vector drawing tools often have a small subset of the layout that production assets need.
+Plasmic’s abstractions (how it represents components, slots, variants, tokens, style presets) are significantly more maintainable and scalable. Vector drawing tools are optimized for quickly “faking things” and place less emphasis on structure.
+Limitless prototyping capabilities, as Plasmic lets you build the real product.
+Plasmic vs. prototyping tools
+Examples: Framer Classic, ProtoPie, Figma/XD/Sketch.
+
+Prototyping tools have significant overlap with vector design tools, but are focused on mocking up how an interaction behaves. For instance, if you are exploring or communicating what a microinteraction animation should look like, or if you are creating a click-through sequence of screens for user testing or communicating an onboarding flow, prototyping tools are great.
+
+The distinction is that prototyping tools:
+
+are focused on mocked-up scenarios rather than production.
+are not built to ship to production (for instance, does not use real layout, does not use normal HTML elements, etc.).
+are oriented toward throwaway mocks, and do not focus on design tool features that enable a design to be maintainably built at scale (tokens, style presets, etc.).
+do not let you seamlessly tap into your real production code components for the design system, production data, or arbitrary interactive effects.
+Plasmic vs. design-to-code tools
+Examples: Anima, Supernova.io, BuilderX, Locofy.
+
+There exist various open and closed source tools that try to convert designs from design tools (such as Figma/XD/Sketch) into code.
+
+These are one-shot tools that let you copy/paste the generated code into your codebase. As soon as you add your own logic, you diverge from the original generated code. You cannot iterate further on the design, which highly limits their applicability for most real-world products.
+
+While Plasmic can also produce plain React code to let you eject, Plasmic’s primary codegen scheme lets you continuously make changes both to the design and to the code.
+
+Beyond this key difference, Plasmic also prioritizes clean, production-grade code generation and render performance (core vitals). We do not (for instance) render large sections of your design as images!
+
+Furthermore, Plasmic’s Figma importer lets you import from Figma into Plasmic with extremely high fidelity, supporting all layout/constraints, transforms, blend modes, filter effects, and more.
+
+Plasmic vs. visual editors in IDEs
+Examples: XCode SwiftUI design tools, Android Studio layout editor, Utopia.
+
+These are highly technical tools that are exclusively for developers, presenting code and design side-by-side. These tools also need to limit themselves to subsets of editing. Modern declarative UI frameworks encourage arbitrary code-as-UI, and so at most, these tools position themselves as an optional convenience/supplement to writing code. The user invariably must be able to edit the code to make any significant changes, particularly when dynamic state or parameterization is involved.
+
+These tools also tend to focus exclusively on a single platform or language.
+
+Plasmic instead is designed to be usable by non-developers as well as developers. Its main use case is to empower non-developers to create designs and content that ship into a web application that would otherwise require handwritten code. These designs can use custom components from codebases, and can be published into codebases, but Plasmic users don’t need familiarity with code or to be highly technical in order to create content. Plasmic doesn’t try to mix logic and presentation; it actively segregates these concerns.
+
+That said, many developers do use Plasmic as a UI builder for applications. This includes Plasmic’s own team—Plasmic is built in Plasmic! Developers can use simplified CSS layout, enjoy instantaneous feedback, design across screen sizes and states, build with rich abstractions, allow designers to make changes, and much more.

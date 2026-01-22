@@ -1,10 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
 
-// --- LOGIC SYSTEM ---
 export type ActionType =
     | { type: 'NAVIGATE'; payload: string }
     | { type: 'OPEN_MODAL'; payload: string }
-    | { type: 'SCROLL_TO'; payload: string };
+    | { type: 'SCROLL_TO'; payload: string }
+    | { type: 'TOGGLE_VISIBILITY'; payload: string };
 
 export interface GlobalStyles {
     colors: Record<string, string>;
@@ -32,10 +32,12 @@ export interface VectraNode {
         className?: string;
         style?: React.CSSProperties;
         layoutMode?: 'canvas' | 'flex';
+        stackOnMobile?: boolean;
         placeholder?: string;
         iconName?: string;
         iconSize?: number;
         iconClassName?: string;
+        id?: string;
         [key: string]: any;
     };
 }
@@ -43,8 +45,12 @@ export interface VectraNode {
 export type VectraProject = Record<string, VectraNode>;
 
 export interface Guide {
-    type: 'horizontal' | 'vertical';
+    orientation: 'horizontal' | 'vertical';
     pos: number;
+    start: number;
+    end: number;
+    label?: string;
+    type: 'align' | 'gap';
 }
 
 export interface ComponentConfig {
@@ -70,3 +76,48 @@ export interface InteractionState {
 }
 
 export type EditorTool = 'select' | 'hand' | 'type';
+export type DeviceType = 'desktop' | 'mobile';
+
+// View Mode: Visual (Design) vs Skeleton (Layout)
+export type ViewMode = 'visual' | 'skeleton';
+
+export interface EditorContextType {
+    elements: VectraProject;
+    setElements: React.Dispatch<React.SetStateAction<VectraProject>>;
+    selectedId: string | null;
+    setSelectedId: (id: string | null) => void;
+    hoveredId: string | null;
+    setHoveredId: (id: string | null) => void;
+    activePageId: string;
+    setActivePageId: (id: string) => void;
+    previewMode: boolean;
+    setPreviewMode: (mode: boolean) => void;
+    viewMode: ViewMode;
+    setViewMode: (mode: ViewMode) => void;
+    device: DeviceType;
+    setDevice: (device: DeviceType) => void;
+    activeTool: EditorTool;
+    setActiveTool: (tool: EditorTool) => void;
+    zoom: number;
+    setZoom: React.Dispatch<React.SetStateAction<number>>;
+    pan: { x: number; y: number };
+    setPan: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
+    isPanning: boolean;
+    setIsPanning: (isPanning: boolean) => void;
+    dragData: DragData | null;
+    setDragData: (data: DragData | null) => void;
+    interaction: InteractionState | null;
+    setInteraction: React.Dispatch<React.SetStateAction<InteractionState | null>>;
+    handleInteractionMove: (e: PointerEvent) => void;
+    guides: Guide[];
+    assets: Asset[];
+    addAsset: (file: File) => void;
+    globalStyles: GlobalStyles;
+    setGlobalStyles: React.Dispatch<React.SetStateAction<GlobalStyles>>;
+    addPage: (name: string) => void;
+    deletePage: (id: string) => void;
+    updateProject: (newElements: VectraProject) => void;
+    deleteElement: (id: string) => void;
+    history: { undo: () => void; redo: () => void };
+    runAction: (action: ActionType) => void;
+}
