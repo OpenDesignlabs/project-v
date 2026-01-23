@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { generateCode, copyToClipboard } from '../utils/codeGenerator';
+import { INITIAL_DATA } from '../data/constants';
 import {
     Play, Undo, Redo, Code,
     Monitor, Smartphone, Tablet, ChevronDown, Check, X, Copy,
-    Layers, Palette
+    Layers, Palette, RotateCcw
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export const Header = () => {
-    const { history, previewMode, setPreviewMode, elements, activePageId, device, setDevice, setSelectedId, viewMode, setViewMode } = useEditor();
+    const { history, previewMode, setPreviewMode, elements, setElements, activePageId, device, setDevice, setSelectedId, viewMode, setViewMode } = useEditor();
     const [showCode, setShowCode] = useState(false);
     const [code, setCode] = useState('');
     const [copied, setCopied] = useState(false);
@@ -31,11 +32,19 @@ export const Header = () => {
         setPreviewMode(!previewMode);
     };
 
+    const handleReset = () => {
+        if (confirm('Reset project to default? This will clear all changes.')) {
+            setElements(INITIAL_DATA);
+            localStorage.removeItem('vectra_design_v50');
+            window.location.reload();
+        }
+    };
+
     return (
         <>
             <div className="h-12 bg-[#1e1e1e] border-b border-[#333] flex items-center justify-between px-3 shrink-0 z-50 text-white">
 
-                {/* LEFT: Branding */}
+                {/* LEFT: Branding & Reset */}
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2 cursor-pointer hover:bg-white/10 px-2 py-1 rounded transition-colors">
                         <div className="w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-700 rounded flex items-center justify-center text-[10px] font-bold shadow-lg shadow-blue-900/50">V</div>
@@ -45,6 +54,14 @@ export const Header = () => {
                         <span className="text-xs font-medium text-gray-200">Vectra Project</span>
                         <span className="text-[9px] text-gray-500">Auto-saved</span>
                     </div>
+                    {/* Reset Button */}
+                    <button
+                        onClick={handleReset}
+                        className="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1 px-2 py-1 hover:bg-red-900/20 rounded transition-colors"
+                        title="Reset to factory settings"
+                    >
+                        <RotateCcw size={10} /> Reset
+                    </button>
                 </div>
 
                 {/* CENTER: View Mode + Device Switcher */}

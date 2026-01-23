@@ -9,8 +9,8 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
         icon: Frame,
         label: 'Artboard',
         defaultProps: {
-            // PRO UPDATE: Default to Hard Clipping with Border
-            className: 'bg-white border border-slate-300 relative overflow-hidden shadow-2xl ring-1 ring-black/5',
+            // FIX: Added min-h for guaranteed visibility
+            className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5 min-h-[600px]',
             style: { width: '800px', height: '600px', position: 'absolute', backgroundColor: '#ffffff' }
         }
     },
@@ -18,9 +18,9 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
         icon: Monitor,
         label: 'Web Page',
         defaultProps: {
-            // PRO UPDATE: Default to Hard Clipping with Border
-            className: 'bg-white border border-slate-300 relative overflow-hidden shadow-2xl ring-1 ring-black/5',
-            style: { width: '1440px', height: '2000px', position: 'absolute', backgroundColor: '#ffffff' }
+            // FIX: Added min-h for guaranteed visibility
+            className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5 min-h-[800px]',
+            style: { width: '1440px', height: '1200px', position: 'absolute', backgroundColor: '#ffffff' }
         }
     },
     container: {
@@ -86,9 +86,10 @@ export const INITIAL_DATA: VectraProject = {
         name: 'Desktop View',
         children: [],
         props: {
-            // PRO DEFAULT: Solid border, clipped content
             showLayoutGrid: false,
+            // FIX: Explicit classes for guaranteed visibility
             className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5',
+            // FIX: Inline background color as fallback
             style: { position: 'absolute', left: '100px', top: '60px', width: '1440px', height: '1200px', backgroundColor: '#ffffff' }
         }
     }
