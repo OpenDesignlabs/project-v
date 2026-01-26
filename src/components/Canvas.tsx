@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { RenderNode } from './RenderNode';
-import { ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { Toolbar } from './Toolbar';
 import { COMPONENT_TYPES } from '../data/constants';
+import { TEMPLATES } from '../data/templates';
+import { instantiateTemplate } from '../utils/templateUtils';
 
 export const Canvas = () => {
     const {
@@ -38,17 +39,44 @@ export const Canvas = () => {
         };
     }, [interaction, handleInteractionMove, setInteraction, isPanning, setIsPanning, setPan, previewMode]);
 
-    const handleWheel = (e: React.WheelEvent) => {
-        if (previewMode) return;
-        if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            const delta = -e.deltaY;
-            const newZoom = Math.min(Math.max(zoom + delta * 0.05 * 0.01, 0.1), 3);
-            setZoom(newZoom);
-        } else {
-            setPan(prev => ({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
-        }
-    };
+    // --- FIX: NATIVE ZOOM HANDLER (Bypasses Browser's Page Zoom) ---
+    useEffect(() => {
+        const canvasEl = canvasRef.current;
+        if (!canvasEl) return;
+
+        const onWheel = (e: WheelEvent) => {
+            if (previewMode) return;
+
+            // Check if user is pinching (trackpad) or using Ctrl+Scroll (mouse)
+            if (e.ctrlKey || e.metaKey) {
+                // CRITICAL: This stops the browser from zooming the whole page
+                e.preventDefault();
+                e.stopPropagation();
+
+                const delta = -e.deltaY;
+                // Adjust sensitivity (smaller = smoother zoom)
+                const zoomFactor = 0.002;
+
+                setZoom(prevZoom => {
+                    const newZoom = Math.min(Math.max(prevZoom + delta * zoomFactor, 0.1), 3);
+                    return newZoom;
+                });
+            } else {
+                // Normal Scroll -> Pan the Canvas
+                e.preventDefault(); // Prevents browser "swipe back" navigation
+                setPan(prev => ({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
+            }
+        };
+
+        // Add listener with passive: false to allow preventDefault()
+        canvasEl.addEventListener('wheel', onWheel, { passive: false });
+
+        return () => {
+            canvasEl.removeEventListener('wheel', onWheel);
+        };
+    }, [setZoom, setPan, previewMode]);
+
+    // Standard Pointer & Keyboard Handlers
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (previewMode) return;
@@ -60,44 +88,91 @@ export const Canvas = () => {
 
     const handleGlobalDrop = (e: React.DragEvent) => {
         e.preventDefault();
-        if (!dragData || dragData.type !== 'NEW' || previewMode) return;
+        if (!dragData || previewMode) return;
 
         const worldX = (e.clientX - pan.x) / zoom;
         const worldY = (e.clientY - pan.y) / zoom;
         const x = Math.round(worldX / 10) * 10;
         const y = Math.round(worldY / 10) * 10;
 
-        const newId = `el-${Date.now()}`;
-        const config = COMPONENT_TYPES[dragData.payload];
-        if (!config) { setDragData(null); return; }
+        let newNodes: Record<string, any> = {};
+        let newRootId = '';
 
-        let defaultWidth = '200px';
-        let defaultHeight = '150px';
-        if (dragData.payload === 'canvas') { defaultWidth = '800px'; defaultHeight = '600px'; }
-        else if (dragData.payload === 'webpage') { defaultWidth = '1440px'; defaultHeight = '2000px'; }
-        else if (dragData.payload === 'button') { defaultWidth = '120px'; defaultHeight = '40px'; }
+        // CASE A: It's a Template (Hero, Pricing, Navbar, etc.)
+        if (dragData.type === 'TEMPLATE') {
+            const template = TEMPLATES[dragData.payload];
+            if (!template) { setDragData(null); return; }
 
-        const newNode = {
-            id: newId,
-            type: dragData.payload,
-            name: config.label,
-            content: config.defaultContent,
-            src: config.src,
-            children: [],
-            props: {
-                ...config.defaultProps,
-                layoutMode: dragData.payload === 'container' ? 'flex' : undefined,
-                style: { ...(config.defaultProps?.style || {}), position: 'absolute', left: `${x}px`, top: `${y}px`, width: defaultWidth, height: defaultHeight }
+            const { rootId, newNodes: instantiatedNodes } = instantiateTemplate(template.rootId, template.nodes);
+
+            newRootId = rootId;
+            newNodes = instantiatedNodes;
+
+            // Apply Drop Position to the Root of the template
+            if (newNodes[newRootId]?.props) {
+                newNodes[newRootId].props.style = {
+                    ...newNodes[newRootId].props.style,
+                    position: 'absolute',
+                    left: `${x}px`,
+                    top: `${y}px`
+                };
             }
-        };
+        }
+        // CASE B: It's a Simple Component (Button, Text, etc.)
+        else if (dragData.type === 'NEW') {
+            const config = COMPONENT_TYPES[dragData.payload];
+            if (!config) { setDragData(null); return; }
 
-        const newElements = { ...elements, [newId]: newNode };
-        if (newElements[activePageId]) {
-            newElements[activePageId] = { ...newElements[activePageId], children: [...(newElements[activePageId].children || []), newId] };
+            newRootId = `el-${Date.now()}`;
+
+            // Default Dimensions based on type
+            let defaultWidth = '200px';
+            let defaultHeight = '150px';
+            if (dragData.payload === 'canvas') { defaultWidth = '800px'; defaultHeight = '600px'; }
+            else if (dragData.payload === 'webpage') { defaultWidth = '1440px'; defaultHeight = '2000px'; }
+            else if (dragData.payload === 'button') { defaultWidth = '120px'; defaultHeight = '40px'; }
+            else if (dragData.payload === 'text' || dragData.payload === 'heading' || dragData.payload === 'link') { defaultWidth = 'auto'; defaultHeight = 'auto'; }
+            else if (dragData.payload === 'container') { defaultWidth = '300px'; defaultHeight = '200px'; }
+            else if (dragData.payload === 'image') { defaultWidth = '400px'; defaultHeight = '300px'; }
+
+            newNodes[newRootId] = {
+                id: newRootId,
+                type: dragData.payload,
+                name: config.label,
+                content: config.defaultContent,
+                src: config.src,
+                children: [],
+                props: {
+                    ...config.defaultProps,
+                    layoutMode: ['container', 'stack_v', 'stack_h'].includes(dragData.payload) ? 'flex' : undefined,
+                    style: {
+                        ...(config.defaultProps?.style || {}),
+                        position: 'absolute',
+                        left: `${x}px`,
+                        top: `${y}px`,
+                        width: defaultWidth,
+                        height: defaultHeight
+                    }
+                }
+            };
+        } else {
+            setDragData(null);
+            return;
         }
 
-        updateProject(newElements);
-        setSelectedId(newId);
+        // Update State
+        const updatedProject = { ...elements, ...newNodes };
+
+        // Attach to Active Page
+        if (updatedProject[activePageId]) {
+            updatedProject[activePageId] = {
+                ...updatedProject[activePageId],
+                children: [...(updatedProject[activePageId].children || []), newRootId]
+            };
+        }
+
+        updateProject(updatedProject);
+        setSelectedId(newRootId);
         setDragData(null);
     };
 
@@ -125,24 +200,16 @@ export const Canvas = () => {
 
     return (
         <div
+            ref={canvasRef}
             className={`flex-1 bg-slate-100 relative flex flex-col ${previewMode ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}
-            onWheel={handleWheel}
             onDrop={handleGlobalDrop}
             onDragOver={handleDragOver}
         >
             {!previewMode && <Toolbar />}
 
-            {!previewMode && (
-                <div className="absolute top-5 left-5 bg-white rounded-full px-1.5 py-1 flex items-center gap-0.5 z-50 shadow-lg border border-slate-100">
-                    <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="p-1.5 hover:bg-slate-50 rounded-full text-slate-600 transition-colors"><ZoomOut size={14} /></button>
-                    <span className="text-[10px] font-medium w-10 text-center text-slate-700">{Math.round(zoom * 100)}%</span>
-                    <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-1.5 hover:bg-slate-50 rounded-full text-slate-600 transition-colors"><ZoomIn size={14} /></button>
-                    <button onClick={() => { setZoom(0.8); setPan({ x: 0, y: 0 }); }} className="p-1.5 hover:bg-slate-50 rounded-full text-slate-600 border-l border-slate-100 ml-0.5 transition-colors" title="Reset View"><Maximize size={14} /></button>
-                </div>
-            )}
+            {/* Zoom controls removed - use Ctrl+Scroll or pinch to zoom */}
 
             <div
-                ref={canvasRef}
                 className="flex-1 relative min-h-full"
                 style={{ cursor: !previewMode && (spacePressed || isPanning) ? 'grab' : interaction ? 'grabbing' : 'default' }}
                 onMouseDown={handleMouseDown}

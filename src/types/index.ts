@@ -53,9 +53,13 @@ export interface Guide {
     type: 'align' | 'gap';
 }
 
+// Component Categories for Insert Drawer
+export type ComponentCategory = 'basic' | 'layout' | 'forms' | 'media' | 'sections';
+
 export interface ComponentConfig {
     icon: LucideIcon;
     label: string;
+    category: ComponentCategory;
     defaultProps: any;
     defaultContent?: string;
     src?: string;
@@ -64,6 +68,8 @@ export interface ComponentConfig {
 export interface DragData {
     type: 'NEW' | 'TEMPLATE' | 'ASSET';
     payload: string;
+    dropIndex?: number;
+    dropParentId?: string;
 }
 
 export interface InteractionState {
@@ -120,4 +126,7 @@ export interface EditorContextType {
     deleteElement: (id: string) => void;
     history: { undo: () => void; redo: () => void };
     runAction: (action: ActionType) => void;
+    // Insert Drawer State
+    isInsertDrawerOpen: boolean;
+    toggleInsertDrawer: () => void;
 }

@@ -1,311 +1,260 @@
 import type { VectraProject } from '../types';
-import { CreditCard, Layout, Star, Users, Mail, Laptop, LayoutDashboard, Briefcase, Zap } from 'lucide-react';
+import { Layout, CreditCard, Navigation, MessageSquare, type LucideIcon } from 'lucide-react';
 
-export interface TemplateDefinition {
-    name: string;
-    category: string;
-    icon: any;
+interface TemplateConfig {
     rootId: string;
     nodes: VectraProject;
+    name: string;
+    category: string;
+    icon: LucideIcon;
 }
 
-export const TEMPLATES: Record<string, TemplateDefinition> = {
-    'pricing-card': {
+export const TEMPLATES: Record<string, TemplateConfig> = {
+    // --- 1. MODERN SAAS HERO (Fixed & Polished) ---
+    hero: {
+        name: 'SaaS Hero',
+        category: 'Sections',
+        icon: Layout,
+        rootId: 'root',
+        nodes: {
+            'root': {
+                id: 'root', type: 'section', name: 'Hero Section', children: ['bg-pattern', 'badge', 'h1', 'p1', 'btn-group'],
+                props: {
+                    // FIX: 'relative' ensures children position inside THIS box, not the page.
+                    className: 'w-full h-[700px] relative bg-white overflow-hidden border-b border-slate-100 group',
+                    layoutMode: 'canvas',
+                    style: { position: 'relative' }
+                }
+            },
+            // NEW: Background Grid Pattern for Pro Feel
+            'bg-pattern': {
+                id: 'bg-pattern', type: 'container', name: 'Background Grid', children: [],
+                props: {
+                    className: 'absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50 pointer-events-none',
+                    style: { width: '100%', height: '100%', zIndex: 0 }
+                }
+            },
+            'badge': {
+                id: 'badge', type: 'button', name: 'Badge',
+                props: {
+                    className: 'px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[11px] font-bold uppercase tracking-wider border border-blue-100 hover:bg-blue-100 transition-colors shadow-sm',
+                    style: { position: 'absolute', left: '50%', top: '80px', transform: 'translateX(-50%)', zIndex: 10, width: 'auto', height: 'auto' }
+                },
+                content: '✨ New Version 2.0'
+            },
+            'h1': {
+                id: 'h1', type: 'heading', name: 'Headline',
+                props: {
+                    className: 'text-7xl font-extrabold text-slate-900 text-center leading-[1.1] tracking-tight',
+                    style: { position: 'absolute', left: '50%', top: '140px', transform: 'translateX(-50%)', width: '900px', zIndex: 10 }
+                },
+                content: 'Ship your startup faster.'
+            },
+            'p1': {
+                id: 'p1', type: 'text', name: 'Subtext',
+                props: {
+                    className: 'text-xl text-slate-500 text-center leading-relaxed max-w-2xl',
+                    style: { position: 'absolute', left: '50%', top: '320px', transform: 'translateX(-50%)', width: '600px', zIndex: 10 }
+                },
+                content: 'The visual builder for developers. Export clean, production-ready React code in seconds, not hours.'
+            },
+            // Grouping buttons visually (though they are separate nodes)
+            'btn-group': {
+                id: 'btn-group', type: 'container', name: 'Button Group', children: ['btn1', 'btn2'],
+                props: {
+                    // Invisible container to hold buttons together if needed, or just visual grouping
+                    className: 'pointer-events-none',
+                    style: { position: 'absolute', left: '50%', top: '420px', transform: 'translateX(-50%)', width: '340px', height: '60px', zIndex: 20 }
+                }
+            },
+            'btn1': {
+                id: 'btn1', type: 'button', name: 'Primary Button',
+                props: {
+                    className: 'px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-semibold text-lg shadow-lg shadow-blue-600/20 transition-all active:scale-95 pointer-events-auto',
+                    style: { position: 'absolute', left: '0px', top: '0px', width: '160px', height: '56px' }
+                },
+                content: 'Get Started'
+            },
+            'btn2': {
+                id: 'btn2', type: 'button', name: 'Secondary Button',
+                props: {
+                    className: 'px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-full font-semibold text-lg shadow-sm transition-all active:scale-95 pointer-events-auto',
+                    style: { position: 'absolute', right: '0px', top: '0px', width: '160px', height: '56px' }
+                },
+                content: 'View Demo'
+            }
+        }
+    },
+
+    // --- 2. PREMIUM PRICING CARD (Fixed Borders) ---
+    pricing: {
         name: 'Pricing Card',
-        category: 'Components',
+        category: 'Cards',
         icon: CreditCard,
         rootId: 'root',
         nodes: {
             'root': {
-                id: 'root', type: 'container', name: 'Pricing Card',
-                children: ['t-title', 't-price', 't-features', 't-btn'],
-                props: { layoutMode: 'flex', className: 'p-8 bg-white border border-slate-200 rounded-2xl shadow-xl w-72 flex flex-col gap-4 hover:border-blue-500 transition-colors' }
+                id: 'root', type: 'container', name: 'Pricing Card', children: ['badge', 'plan-name', 'price', 'desc', 'sep', 'f1', 'f2', 'f3', 'btn'],
+                props: {
+                    // FIX: overflow-hidden ensures child elements don't bleed out
+                    className: 'bg-white border border-slate-200 rounded-3xl shadow-xl hover:shadow-2xl transition-all relative overflow-hidden group',
+                    layoutMode: 'canvas',
+                    style: { width: '360px', height: '520px', backgroundColor: '#ffffff', position: 'relative' }
+                }
             },
-            't-title': {
-                id: 't-title', type: 'text', name: 'Plan Name', content: 'Pro Plan',
-                props: { className: 'text-sm font-bold text-blue-600 uppercase tracking-wider' }
+            'badge': {
+                id: 'badge', type: 'text', name: 'Popular Badge',
+                props: {
+                    className: 'bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm',
+                    style: { position: 'absolute', right: '24px', top: '24px', width: 'auto' }
+                },
+                content: 'POPULAR'
             },
-            't-price': {
-                id: 't-price', type: 'text', name: 'Price', content: '$29/mo',
-                props: { className: 'text-4xl font-black text-slate-900' }
+            'plan-name': {
+                id: 'plan-name', type: 'text', name: 'Plan Name',
+                props: {
+                    className: 'text-sm font-bold text-slate-500 uppercase tracking-wide',
+                    style: { position: 'absolute', left: '32px', top: '32px', width: 'auto' }
+                },
+                content: 'Pro Plan'
             },
-            't-features': {
-                id: 't-features', type: 'text', name: 'Features', content: '✓ Unlimited projects\n✓ Priority support\n✓ Advanced analytics',
-                props: { className: 'text-sm text-slate-500 whitespace-pre-line' }
+            'price': {
+                id: 'price', type: 'heading', name: 'Price',
+                props: {
+                    className: 'text-5xl font-extrabold text-slate-900 tracking-tight',
+                    style: { position: 'absolute', left: '32px', top: '65px', width: 'auto' }
+                },
+                content: '$49'
             },
-            't-btn': {
-                id: 't-btn', type: 'button', name: 'Subscribe Button', content: 'Get Started →',
-                props: { className: 'w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors' }
+            'desc': {
+                id: 'desc', type: 'text', name: 'Description',
+                props: {
+                    className: 'text-sm text-slate-400 font-medium',
+                    style: { position: 'absolute', left: '130px', top: '88px', width: 'auto' }
+                },
+                content: '/ month'
+            },
+            'sep': {
+                id: 'sep', type: 'container', name: 'Separator', children: [],
+                props: {
+                    className: 'bg-slate-100',
+                    style: { position: 'absolute', left: '32px', top: '140px', width: '296px', height: '1px' }
+                }
+            },
+            'f1': {
+                id: 'f1', type: 'text', name: 'Feature 1',
+                props: { className: 'text-slate-600 text-sm font-medium', style: { position: 'absolute', left: '32px', top: '170px', width: '280px' } },
+                content: '✓  Unlimited Projects'
+            },
+            'f2': {
+                id: 'f2', type: 'text', name: 'Feature 2',
+                props: { className: 'text-slate-600 text-sm font-medium', style: { position: 'absolute', left: '32px', top: '210px', width: '280px' } },
+                content: '✓  Priority 24/7 Support'
+            },
+            'f3': {
+                id: 'f3', type: 'text', name: 'Feature 3',
+                props: { className: 'text-slate-600 text-sm font-medium', style: { position: 'absolute', left: '32px', top: '250px', width: '280px' } },
+                content: '✓  Advanced Analytics'
+            },
+            'btn': {
+                id: 'btn', type: 'button', name: 'Buy Button',
+                props: {
+                    className: 'w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95',
+                    style: { position: 'absolute', left: '32px', bottom: '32px', width: '296px', height: '50px' }
+                },
+                content: 'Get Started'
             }
         }
     },
 
-    'hero-section': {
-        name: 'SaaS Hero',
-        category: 'Sections',
-        icon: Laptop,
-        rootId: 'hero-root',
-        nodes: {
-            'hero-root': {
-                id: 'hero-root', type: 'container', name: 'Hero Section',
-                children: ['hero-content'],
-                props: { layoutMode: 'flex', className: 'w-full py-20 px-8 flex justify-center bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl' }
-            },
-            'hero-content': {
-                id: 'hero-content', type: 'container', name: 'Content',
-                children: ['hero-badge', 'hero-title', 'hero-subtitle', 'hero-buttons'],
-                props: { layoutMode: 'flex', className: 'text-center max-w-3xl flex flex-col items-center gap-6' }
-            },
-            'hero-badge': {
-                id: 'hero-badge', type: 'text', name: 'Badge', content: '🚀 New Release',
-                props: { className: 'px-4 py-1 bg-blue-500/20 text-blue-400 text-sm font-medium rounded-full' }
-            },
-            'hero-title': {
-                id: 'hero-title', type: 'text', name: 'Hero Title', content: 'Ship faster.\nBuild better.',
-                props: { className: 'text-5xl font-extrabold text-white tracking-tight leading-tight whitespace-pre-line' }
-            },
-            'hero-subtitle': {
-                id: 'hero-subtitle', type: 'text', name: 'Hero Subtitle', content: 'The visual builder for developers who value speed and quality.',
-                props: { className: 'text-xl text-slate-400 max-w-xl' }
-            },
-            'hero-buttons': {
-                id: 'hero-buttons', type: 'container', name: 'Buttons',
-                children: ['hero-cta', 'hero-secondary'],
-                props: { layoutMode: 'flex', className: 'flex gap-4 mt-4' }
-            },
-            'hero-cta': {
-                id: 'hero-cta', type: 'button', name: 'CTA', content: 'Start Building Free',
-                props: { className: 'px-8 py-4 bg-blue-600 text-white text-lg font-bold rounded-full shadow-xl hover:bg-blue-700 hover:scale-105 transition-all' }
-            },
-            'hero-secondary': {
-                id: 'hero-secondary', type: 'button', name: 'Secondary', content: 'Watch Demo',
-                props: { className: 'px-8 py-4 bg-white/10 text-white text-lg font-medium rounded-full hover:bg-white/20 transition-all' }
-            }
-        }
-    },
-
-    'navbar': {
-        name: 'Navbar',
+    // --- 3. GLASS NAVBAR (Fixed Z-Index) ---
+    navbar: {
+        name: 'Navigation Bar',
         category: 'Navigation',
-        icon: Layout,
-        rootId: 'nav-root',
+        icon: Navigation,
+        rootId: 'root',
         nodes: {
-            'nav-root': {
-                id: 'nav-root', type: 'container', name: 'Navbar',
-                children: ['nav-logo', 'nav-links', 'nav-btn'],
-                props: { layoutMode: 'flex', className: 'w-full h-16 flex items-center justify-between px-6 bg-white border-b border-slate-200 shadow-sm' }
+            'root': {
+                id: 'root', type: 'section', name: 'Navbar', children: ['logo', 'l1', 'l2', 'l3', 'cta'],
+                props: {
+                    // Z-Index 50 ensures it stays on top of Hero content
+                    className: 'w-full h-[80px] bg-white/80 backdrop-blur-md border-b border-slate-200 z-50',
+                    layoutMode: 'canvas',
+                    style: { position: 'relative' }
+                }
             },
-            'nav-logo': {
-                id: 'nav-logo', type: 'text', name: 'Logo', content: '⚡ VECTRA',
-                props: { className: 'font-black text-xl text-slate-900' }
+            'logo': {
+                id: 'logo', type: 'text', name: 'Logo',
+                props: {
+                    className: 'text-xl font-black text-slate-900 tracking-tighter',
+                    style: { position: 'absolute', left: '40px', top: '26px' }
+                },
+                content: '⚡ VECTRA'
             },
-            'nav-links': {
-                id: 'nav-links', type: 'container', name: 'Links',
-                children: ['nav-l1', 'nav-l2', 'nav-l3'],
-                props: { layoutMode: 'flex', className: 'flex gap-8' }
+            'l1': {
+                id: 'l1', type: 'link', name: 'Link 1',
+                props: { className: 'text-sm font-semibold text-slate-600 hover:text-blue-600', style: { position: 'absolute', left: '50%', top: '30px', transform: 'translateX(-120px)' } },
+                content: 'Product'
             },
-            'nav-l1': {
-                id: 'nav-l1', type: 'text', name: 'Link 1', content: 'Features',
-                props: { className: 'text-sm text-slate-600 font-medium hover:text-blue-600 cursor-pointer transition-colors' }
+            'l2': {
+                id: 'l2', type: 'link', name: 'Link 2',
+                props: { className: 'text-sm font-semibold text-slate-600 hover:text-blue-600', style: { position: 'absolute', left: '50%', top: '30px', transform: 'translateX(0px)' } },
+                content: 'Solutions'
             },
-            'nav-l2': {
-                id: 'nav-l2', type: 'text', name: 'Link 2', content: 'Pricing',
-                props: { className: 'text-sm text-slate-600 font-medium hover:text-blue-600 cursor-pointer transition-colors' }
+            'l3': {
+                id: 'l3', type: 'link', name: 'Link 3',
+                props: { className: 'text-sm font-semibold text-slate-600 hover:text-blue-600', style: { position: 'absolute', left: '50%', top: '30px', transform: 'translateX(120px)' } },
+                content: 'Pricing'
             },
-            'nav-l3': {
-                id: 'nav-l3', type: 'text', name: 'Link 3', content: 'About',
-                props: { className: 'text-sm text-slate-600 font-medium hover:text-blue-600 cursor-pointer transition-colors' }
-            },
-            'nav-btn': {
-                id: 'nav-btn', type: 'button', name: 'Sign In', content: 'Sign In',
-                props: { className: 'px-5 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors' }
+            'cta': {
+                id: 'cta', type: 'button', name: 'Nav Button',
+                props: {
+                    className: 'px-5 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-all',
+                    style: { position: 'absolute', right: '40px', top: '20px', height: '40px' }
+                },
+                content: 'Sign In'
             }
         }
     },
 
-    'dashboard-sidebar': {
-        name: 'Admin Sidebar',
-        category: 'Navigation',
-        icon: LayoutDashboard,
-        rootId: 'db-root',
+    // --- 4. TESTIMONIAL ---
+    testimonial: {
+        name: 'Testimonial Card',
+        category: 'Cards',
+        icon: MessageSquare,
+        rootId: 'root',
         nodes: {
-            'db-root': {
-                id: 'db-root', type: 'container', name: 'Sidebar',
-                children: ['db-logo', 'db-nav', 'db-footer'],
-                props: { layoutMode: 'flex', className: 'w-64 min-h-[400px] bg-slate-900 text-white p-6 flex flex-col gap-6 rounded-xl' }
+            'root': {
+                id: 'root', type: 'container', name: 'Testimonial', children: ['quote', 'author', 'role'],
+                props: {
+                    className: 'bg-white p-8 rounded-2xl shadow-sm border border-slate-100 relative',
+                    layoutMode: 'canvas',
+                    style: { width: '400px', height: '220px', backgroundColor: '#ffffff', position: 'relative' }
+                }
             },
-            'db-logo': {
-                id: 'db-logo', type: 'text', name: 'Logo', content: '⬡ DASHBOARD',
-                props: { className: 'text-xl font-black text-white tracking-wider' }
+            'quote': {
+                id: 'quote', type: 'text', name: 'Quote',
+                props: {
+                    className: 'text-lg text-slate-700 italic leading-relaxed',
+                    style: { position: 'absolute', left: '32px', top: '32px', width: '336px' }
+                },
+                content: '"Vectra completely changed how we build landing pages. It\'s exactly the tool I\'ve been waiting for."'
             },
-            'db-nav': {
-                id: 'db-nav', type: 'container', name: 'Navigation',
-                children: ['db-l1', 'db-l2', 'db-l3', 'db-l4'],
-                props: { layoutMode: 'flex', className: 'flex flex-col gap-1 flex-1' }
+            'author': {
+                id: 'author', type: 'text', name: 'Author Name',
+                props: {
+                    className: 'font-bold text-slate-900',
+                    style: { position: 'absolute', left: '32px', bottom: '50px' }
+                },
+                content: 'Sarah Jenkins'
             },
-            'db-l1': {
-                id: 'db-l1', type: 'text', name: 'Link 1', content: '📊 Overview',
-                props: { className: 'p-3 bg-blue-600 rounded-lg text-sm font-medium cursor-pointer' }
-            },
-            'db-l2': {
-                id: 'db-l2', type: 'text', name: 'Link 2', content: '📈 Analytics',
-                props: { className: 'p-3 hover:bg-slate-800 rounded-lg text-sm font-medium text-slate-400 cursor-pointer transition-colors' }
-            },
-            'db-l3': {
-                id: 'db-l3', type: 'text', name: 'Link 3', content: '👥 Customers',
-                props: { className: 'p-3 hover:bg-slate-800 rounded-lg text-sm font-medium text-slate-400 cursor-pointer transition-colors' }
-            },
-            'db-l4': {
-                id: 'db-l4', type: 'text', name: 'Link 4', content: '⚙️ Settings',
-                props: { className: 'p-3 hover:bg-slate-800 rounded-lg text-sm font-medium text-slate-400 cursor-pointer transition-colors' }
-            },
-            'db-footer': {
-                id: 'db-footer', type: 'text', name: 'Footer', content: 'v2.4.0',
-                props: { className: 'text-xs text-slate-600' }
-            }
-        }
-    },
-
-    'testimonial-card': {
-        name: 'Testimonial',
-        category: 'Components',
-        icon: Star,
-        rootId: 'test-root',
-        nodes: {
-            'test-root': {
-                id: 'test-root', type: 'container', name: 'Testimonial Card',
-                children: ['test-stars', 'test-quote', 'test-author'],
-                props: { layoutMode: 'flex', className: 'p-6 bg-white border border-slate-200 rounded-xl w-80 shadow-lg hover:shadow-xl transition-shadow' }
-            },
-            'test-stars': {
-                id: 'test-stars', type: 'text', name: 'Stars', content: '★★★★★',
-                props: { className: 'text-yellow-400 text-lg mb-2' }
-            },
-            'test-quote': {
-                id: 'test-quote', type: 'text', name: 'Quote', content: '"This tool has completely transformed how we design. The speed and quality are unmatched!"',
-                props: { className: 'text-slate-700 italic mb-4 leading-relaxed' }
-            },
-            'test-author': {
-                id: 'test-author', type: 'text', name: 'Author', content: '— Sarah Johnson, Lead Designer at Stripe',
-                props: { className: 'text-sm font-semibold text-slate-900' }
-            }
-        }
-    },
-
-    'team-card': {
-        name: 'Team Member',
-        category: 'Components',
-        icon: Users,
-        rootId: 'team-root',
-        nodes: {
-            'team-root': {
-                id: 'team-root', type: 'container', name: 'Team Card',
-                children: ['team-avatar', 'team-name', 'team-role', 'team-social'],
-                props: { layoutMode: 'flex', className: 'p-6 bg-white border border-slate-200 rounded-xl w-56 flex flex-col items-center text-center shadow-lg hover:border-blue-500 transition-colors' }
-            },
-            'team-avatar': {
-                id: 'team-avatar', type: 'container', name: 'Avatar',
-                children: [],
-                props: { className: 'w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full mb-4' }
-            },
-            'team-name': {
-                id: 'team-name', type: 'text', name: 'Name', content: 'Alex Chen',
-                props: { className: 'font-bold text-lg text-slate-900' }
-            },
-            'team-role': {
-                id: 'team-role', type: 'text', name: 'Role', content: 'Senior Engineer',
-                props: { className: 'text-sm text-slate-500 mb-4' }
-            },
-            'team-social': {
-                id: 'team-social', type: 'text', name: 'Social', content: '🐦  💼  🔗',
-                props: { className: 'text-lg text-slate-400' }
-            }
-        }
-    },
-
-    'contact-form': {
-        name: 'Contact Form',
-        category: 'Forms',
-        icon: Mail,
-        rootId: 'form-root',
-        nodes: {
-            'form-root': {
-                id: 'form-root', type: 'container', name: 'Contact Form',
-                children: ['form-title', 'form-desc', 'form-email', 'form-message', 'form-submit'],
-                props: { layoutMode: 'flex', className: 'p-8 bg-white border border-slate-200 rounded-xl w-96 flex flex-col gap-4 shadow-xl' }
-            },
-            'form-title': {
-                id: 'form-title', type: 'text', name: 'Form Title', content: 'Get in Touch',
-                props: { className: 'text-2xl font-bold text-slate-900' }
-            },
-            'form-desc': {
-                id: 'form-desc', type: 'text', name: 'Description', content: 'We\'d love to hear from you. Send us a message!',
-                props: { className: 'text-sm text-slate-500 mb-2' }
-            },
-            'form-email': {
-                id: 'form-email', type: 'input', name: 'Email Input',
-                props: { className: 'w-full px-4 py-3 border border-slate-300 rounded-lg focus:border-blue-500 transition-colors', placeholder: 'Your email address' }
-            },
-            'form-message': {
-                id: 'form-message', type: 'input', name: 'Message Input',
-                props: { className: 'w-full px-4 py-3 border border-slate-300 rounded-lg h-32 focus:border-blue-500 transition-colors', placeholder: 'Your message...' }
-            },
-            'form-submit': {
-                id: 'form-submit', type: 'button', name: 'Submit Button', content: 'Send Message →',
-                props: { className: 'w-full py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors' }
-            }
-        }
-    },
-
-    'feature-card': {
-        name: 'Feature Card',
-        category: 'Components',
-        icon: Zap,
-        rootId: 'feat-root',
-        nodes: {
-            'feat-root': {
-                id: 'feat-root', type: 'container', name: 'Feature Card',
-                children: ['feat-icon', 'feat-title', 'feat-desc'],
-                props: { layoutMode: 'flex', className: 'p-6 bg-white border border-slate-200 rounded-xl w-72 flex flex-col gap-3 hover:border-blue-500 hover:shadow-lg transition-all' }
-            },
-            'feat-icon': {
-                id: 'feat-icon', type: 'container', name: 'Icon',
-                children: [],
-                props: { className: 'w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-2xl' }
-            },
-            'feat-title': {
-                id: 'feat-title', type: 'text', name: 'Title', content: 'Lightning Fast',
-                props: { className: 'text-lg font-bold text-slate-900' }
-            },
-            'feat-desc': {
-                id: 'feat-desc', type: 'text', name: 'Description', content: 'Build and iterate on designs at the speed of thought with our optimized engine.',
-                props: { className: 'text-sm text-slate-500 leading-relaxed' }
-            }
-        }
-    },
-
-    'stats-card': {
-        name: 'Stats Card',
-        category: 'Components',
-        icon: Briefcase,
-        rootId: 'stats-root',
-        nodes: {
-            'stats-root': {
-                id: 'stats-root', type: 'container', name: 'Stats Card',
-                children: ['stats-value', 'stats-label', 'stats-change'],
-                props: { layoutMode: 'flex', className: 'p-6 bg-white border border-slate-200 rounded-xl w-48 flex flex-col shadow-lg' }
-            },
-            'stats-value': {
-                id: 'stats-value', type: 'text', name: 'Value', content: '$12.4k',
-                props: { className: 'text-3xl font-black text-slate-900' }
-            },
-            'stats-label': {
-                id: 'stats-label', type: 'text', name: 'Label', content: 'Revenue',
-                props: { className: 'text-sm text-slate-500' }
-            },
-            'stats-change': {
-                id: 'stats-change', type: 'text', name: 'Change', content: '↑ 12.5%',
-                props: { className: 'text-sm font-bold text-green-600 mt-2' }
+            'role': {
+                id: 'role', type: 'text', name: 'Author Role',
+                props: {
+                    className: 'text-sm text-slate-500',
+                    style: { position: 'absolute', left: '32px', bottom: '30px' }
+                },
+                content: 'CTO at TechFlow'
             }
         }
     }

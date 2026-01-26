@@ -1,96 +1,130 @@
 import {
-    Frame, Box, Type, Square, FormInput, Image as ImageIcon,
-    Grid as GridIcon, Repeat, Star, Monitor
+    Type, Square, Box, Layout, Grid, Image as ImageIcon, Video,
+    FormInput, CheckSquare, List, Link, Frame, Columns, AlignCenter, CreditCard, Globe, Monitor
 } from 'lucide-react';
 import type { ComponentConfig, VectraProject } from '../types';
 
 export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
+    // --- BASIC ---
+    text: {
+        icon: Type, label: 'Text', category: 'basic',
+        defaultProps: { className: 'text-slate-800 text-base' }, defaultContent: 'Type something...'
+    },
+    heading: {
+        icon: Type, label: 'Heading', category: 'basic',
+        defaultProps: { className: 'text-slate-900 text-3xl font-bold mb-4' }, defaultContent: 'Big Heading'
+    },
+    button: {
+        icon: Square, label: 'Button', category: 'basic',
+        defaultProps: { className: 'px-5 py-2.5 bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 font-medium transition-all active:scale-95' }, defaultContent: 'Click Me'
+    },
+    link: {
+        icon: Link, label: 'Link', category: 'basic',
+        defaultProps: { className: 'text-blue-600 hover:underline cursor-pointer' }, defaultContent: 'Read more'
+    },
+
+    // --- LAYOUT ---
+    container: {
+        icon: Box, label: 'Container', category: 'layout',
+        defaultProps: { className: 'p-6 border border-dashed border-slate-300 rounded bg-slate-50/50 min-h-[100px] flex flex-col gap-4' }
+    },
+    stack_v: {
+        icon: List, label: 'Vertical Stack', category: 'layout',
+        defaultProps: { className: 'flex flex-col gap-4 p-4 min-h-[50px]', layoutMode: 'flex', stackOnMobile: true }
+    },
+    stack_h: {
+        icon: Columns, label: 'Horizontal Stack', category: 'layout',
+        defaultProps: { className: 'flex flex-row gap-4 p-4 min-h-[50px] items-center', layoutMode: 'flex', stackOnMobile: true }
+    },
+    grid: {
+        icon: Grid, label: 'Grid', category: 'layout',
+        defaultProps: { className: 'grid grid-cols-2 gap-4 p-4 w-full' }
+    },
+    section: {
+        icon: Layout, label: 'Section', category: 'layout',
+        defaultProps: { className: 'w-full py-16 px-8 bg-white' }
+    },
+
+    // --- FORMS ---
+    input: {
+        icon: FormInput, label: 'Input Field', category: 'forms',
+        defaultProps: { className: 'w-full px-4 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none', placeholder: 'Enter text...' }
+    },
+    checkbox: {
+        icon: CheckSquare, label: 'Checkbox', category: 'forms',
+        defaultProps: { className: 'w-5 h-5 text-blue-600 rounded focus:ring-blue-500' }
+    },
+
+    // --- MEDIA ---
+    image: {
+        icon: ImageIcon, label: 'Image', category: 'media',
+        defaultProps: { className: 'w-full h-64 object-cover rounded-xl bg-slate-100' }, src: 'https://via.placeholder.com/400x300'
+    },
+    video: {
+        icon: Video, label: 'Video', category: 'media',
+        defaultProps: { className: 'w-full aspect-video bg-slate-900 rounded-xl flex items-center justify-center text-white' }, defaultContent: 'Video Placeholder'
+    },
+
+    // --- SECTIONS (Pre-built) ---
+    hero: {
+        icon: AlignCenter, label: 'Hero Section', category: 'sections',
+        defaultProps: { className: 'w-full py-20 bg-slate-900 text-center flex flex-col items-center gap-6' }
+    },
+    pricing: {
+        icon: CreditCard, label: 'Pricing Card', category: 'sections',
+        defaultProps: { className: 'p-8 border border-slate-200 rounded-2xl shadow-sm hover:shadow-xl transition-all bg-white flex flex-col gap-4 max-w-sm' }
+    },
+    navbar: {
+        icon: Globe, label: 'Navbar', category: 'sections',
+        defaultProps: { className: 'w-full px-8 py-4 flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-50' }
+    },
+
+    // --- ARTBOARDS ---
     canvas: {
-        icon: Frame,
-        label: 'Artboard',
+        icon: Frame, label: 'Artboard', category: 'layout',
         defaultProps: {
-            // FIX: Added min-h for guaranteed visibility
             className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5 min-h-[600px]',
             style: { width: '800px', height: '600px', position: 'absolute', backgroundColor: '#ffffff' }
         }
     },
     webpage: {
-        icon: Monitor,
-        label: 'Web Page',
+        icon: Monitor, label: 'Web Page', category: 'layout',
         defaultProps: {
-            // FIX: Added min-h for guaranteed visibility
             className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5 min-h-[800px]',
-            style: { width: '1440px', height: '1200px', position: 'absolute', backgroundColor: '#ffffff' }
+            style: { width: '1100px', height: '1200px', position: 'absolute', backgroundColor: '#ffffff' }
         }
-    },
-    container: {
-        icon: Box,
-        label: 'Container',
-        defaultProps: { className: 'p-4 flex flex-col gap-2 min-h-[100px] border border-dashed border-slate-300 rounded bg-slate-50/50 hover:bg-slate-50 transition-colors' }
-    },
-    text: {
-        icon: Type,
-        label: 'Text',
-        defaultProps: { className: 'text-slate-800 text-base leading-relaxed' },
-        defaultContent: 'Text Block'
-    },
-    button: {
-        icon: Square,
-        label: 'Button',
-        defaultProps: { className: 'px-4 py-2 bg-blue-600 text-white rounded shadow-sm hover:bg-blue-700 flex items-center justify-center font-medium transition-all' },
-        defaultContent: 'Button'
-    },
-    input: {
-        icon: FormInput,
-        label: 'Input',
-        defaultProps: { className: 'w-full px-3 py-2 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all', placeholder: 'Enter text...' },
-        defaultContent: ''
-    },
-    image: {
-        icon: ImageIcon,
-        label: 'Image',
-        defaultProps: { className: 'bg-slate-100 object-cover rounded overflow-hidden border border-slate-200' },
-        src: 'https://via.placeholder.com/300x200'
-    },
-    icon: {
-        icon: Star,
-        label: 'Icon',
-        defaultProps: { className: 'flex items-center justify-center text-slate-600', iconName: 'Star', iconSize: 24 }
-    },
-    grid: {
-        icon: GridIcon,
-        label: 'Grid',
-        defaultProps: { className: 'grid grid-cols-2 gap-4 p-2 w-full' }
-    },
-    repeater: {
-        icon: Repeat,
-        label: 'Repeater',
-        defaultProps: { className: 'flex flex-col gap-2 p-2 border border-blue-200 bg-blue-50 w-full' }
     },
 };
 
 export const INITIAL_DATA: VectraProject = {
-    'application-root': {
-        id: 'application-root', type: 'app', name: 'Vectra Project', children: ['page-home'], props: {}
-    },
-    'page-home': {
-        id: 'page-home',
-        type: 'page',
-        name: 'Home',
-        children: ['main-frame'],
-        props: { layoutMode: 'canvas', className: 'w-full h-full relative' }
-    },
-    'main-frame': {
-        id: 'main-frame',
+    'application-root': { id: 'application-root', type: 'app', name: 'Vectra Project', children: ['page-home'], props: {} },
+    'page-home': { id: 'page-home', type: 'page', name: 'Home', children: ['main-frame-desktop', 'main-frame-mobile'], props: { layoutMode: 'canvas', className: 'w-full h-full relative' } },
+
+    // FRAME 1: DESKTOP
+    'main-frame-desktop': {
+        id: 'main-frame-desktop',
         type: 'webpage',
         name: 'Desktop View',
         children: [],
         props: {
             showLayoutGrid: false,
-            // FIX: Explicit classes for guaranteed visibility
             className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5',
-            // FIX: Inline background color as fallback
-            style: { position: 'absolute', left: '100px', top: '60px', width: '1440px', height: '1200px', backgroundColor: '#ffffff' }
+            // Positioned at X: 100, Width: 1100
+            style: { position: 'absolute', left: '100px', top: '60px', width: '1100px', height: '1200px', backgroundColor: '#ffffff' }
+        }
+    },
+
+    // FRAME 2: MOBILE (iPhone)
+    'main-frame-mobile': {
+        id: 'main-frame-mobile',
+        type: 'canvas',
+        name: 'Mobile View',
+        children: [],
+        props: {
+            showLayoutGrid: false,
+            className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5',
+            // Positioned at X: 1300 (100 + 1100 + gap 100), Width: 390 (iPhone)
+            style: { position: 'absolute', left: '1300px', top: '60px', width: '390px', height: '844px', backgroundColor: '#ffffff' }
         }
     }
 };

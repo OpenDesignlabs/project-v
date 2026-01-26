@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { VectraProject, DragData, InteractionState, Guide, Asset, GlobalStyles, EditorTool, DeviceType, ActionType, ViewMode } from '../types';
-import { INITIAL_DATA } from '../data/constants';
+import type { VectraProject, DragData, InteractionState, Guide, Asset, GlobalStyles, EditorTool, DeviceType, ActionType, ViewMode, ComponentConfig } from '../types';
+import { INITIAL_DATA, COMPONENT_TYPES } from '../data/constants';
+
+// Sidebar Panel Types
+export type SidebarPanel = 'add' | 'layers' | 'pages' | 'assets' | 'settings' | null;
 
 interface ExtendedEditorContextType {
     elements: VectraProject;
@@ -41,6 +44,16 @@ interface ExtendedEditorContextType {
     deleteElement: (id: string) => void;
     history: { undo: () => void; redo: () => void };
     runAction: (action: ActionType) => void;
+    // Insert Drawer State (Legacy - for backward compat)
+    isInsertDrawerOpen: boolean;
+    toggleInsertDrawer: () => void;
+    // NEW: Sidebar Panel System
+    activePanel: SidebarPanel;
+    setActivePanel: React.Dispatch<React.SetStateAction<SidebarPanel>>;
+    togglePanel: (panel: SidebarPanel) => void;
+    // Dynamic Component Registry
+    componentRegistry: Record<string, ComponentConfig>;
+    registerComponent: (id: string, config: ComponentConfig) => void;
 }
 
 const EditorContext = createContext<ExtendedEditorContextType | undefined>(undefined);
@@ -60,7 +73,7 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [device, setDeviceState] = useState<DeviceType>('desktop');
     const [dragData, setDragData] = useState<DragData | null>(null);
     const [interaction, setInteraction] = useState<InteractionState | null>(null);
-    const [zoom, setZoom] = useState(0.8);
+    const [zoom, setZoom] = useState(0.5);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [isPanning, setIsPanning] = useState(false);
     const [historyStack, setHistoryStack] = useState<VectraProject[]>([INITIAL_DATA]);
@@ -71,6 +84,39 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         colors: { primary: '#3b82f6', secondary: '#10b981', accent: '#f59e0b', dark: '#1e293b' },
         fonts: {}
     });
+    // Insert Drawer State (Legacy)
+    const [isInsertDrawerOpen, setIsInsertDrawerOpen] = useState(false);
+
+    // NEW: Sidebar Panel State
+    const [activePanel, setActivePanel] = useState<SidebarPanel>(null);
+
+    // Dynamic Component Registry - starts with default components
+    const [componentRegistry, setComponentRegistry] = useState<Record<string, ComponentConfig>>(COMPONENT_TYPES);
+
+    const toggleInsertDrawer = useCallback(() => {
+        setIsInsertDrawerOpen(prev => !prev);
+        // Sync with new panel system
+        setActivePanel(prev => prev === 'add' ? null : 'add');
+    }, []);
+
+    // Toggle panel - if same panel, close it
+    const togglePanel = useCallback((panel: SidebarPanel) => {
+        setActivePanel(prev => prev === panel ? null : panel);
+        // Sync legacy state
+        if (panel === 'add') {
+            setIsInsertDrawerOpen(prev => !prev);
+        }
+    }, []);
+
+    // Register new components at runtime
+    const registerComponent = useCallback((id: string, config: ComponentConfig) => {
+        setComponentRegistry(prev => {
+            if (prev[id]) {
+                console.warn(`Component ${id} already exists. Overwriting.`);
+            }
+            return { ...prev, [id]: config };
+        });
+    }, []);
 
     useEffect(() => {
         const timer = setTimeout(() => localStorage.setItem('vectra_design_v50', JSON.stringify(elements)), 1000);
@@ -331,7 +377,10 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             interaction, setInteraction, handleInteractionMove, guides, assets, addAsset,
             globalStyles, setGlobalStyles, addPage, deletePage, updateProject, deleteElement,
             history: { undo, redo }, runAction,
-            viewMode, setViewMode
+            viewMode, setViewMode,
+            isInsertDrawerOpen, toggleInsertDrawer,
+            activePanel, setActivePanel, togglePanel,
+            componentRegistry, registerComponent
         }}>
             {children}
         </EditorContext.Provider>
