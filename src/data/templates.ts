@@ -1,5 +1,5 @@
 import type { VectraProject } from '../types';
-import { Layout, CreditCard, Navigation, MessageSquare, type LucideIcon } from 'lucide-react';
+import { CreditCard, Navigation, Sparkles, type LucideIcon } from 'lucide-react';
 
 interface TemplateConfig {
     rootId: string;
@@ -10,83 +10,76 @@ interface TemplateConfig {
 }
 
 export const TEMPLATES: Record<string, TemplateConfig> = {
-    // --- 1. MODERN SAAS HERO (Fixed & Polished) ---
-    hero: {
-        name: 'SaaS Hero',
+    // --- 1. GEOMETRIC HERO (Hybrid) ---
+    // Uses the Framer Motion background + Native Editable Text
+    hero_geometric: {
+        name: 'Geometric Hero',
         category: 'Sections',
-        icon: Layout,
+        icon: Sparkles,
         rootId: 'root',
         nodes: {
             'root': {
-                id: 'root', type: 'section', name: 'Hero Section', children: ['bg-pattern', 'badge', 'h1', 'p1', 'btn-group'],
+                id: 'root', type: 'section', name: 'Geometric Hero',
+                children: ['bg-visual', 'badge', 'h1', 'p1', 'btn-group'],
                 props: {
-                    // FIX: 'relative' ensures children position inside THIS box, not the page.
-                    className: 'w-full h-[700px] relative bg-white overflow-hidden border-b border-slate-100 group',
-                    layoutMode: 'canvas',
-                    style: { position: 'relative' }
+                    className: 'w-[1000px] h-[600px] relative bg-[#0a0a0a] overflow-hidden rounded-xl shadow-2xl',
+                    layoutMode: 'canvas' // Enables dragging children
                 }
             },
-            // NEW: Background Grid Pattern for Pro Feel
-            'bg-pattern': {
-                id: 'bg-pattern', type: 'container', name: 'Background Grid', children: [],
+            'bg-visual': {
+                id: 'bg-visual', type: 'geometric_bg', name: 'Animation', children: [],
+                locked: true, // User cannot drag the background
                 props: {
-                    className: 'absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-50 pointer-events-none',
+                    className: 'absolute inset-0 pointer-events-none',
                     style: { width: '100%', height: '100%', zIndex: 0 }
                 }
             },
             'badge': {
                 id: 'badge', type: 'button', name: 'Badge',
                 props: {
-                    className: 'px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[11px] font-bold uppercase tracking-wider border border-blue-100 hover:bg-blue-100 transition-colors shadow-sm',
-                    style: { position: 'absolute', left: '50%', top: '80px', transform: 'translateX(-50%)', zIndex: 10, width: 'auto', height: 'auto' }
+                    className: 'px-4 py-1.5 bg-white/5 border border-white/10 rounded-full text-[11px] font-medium text-white/80 uppercase tracking-widest backdrop-blur-md hover:bg-white/10 transition-colors',
+                    style: { position: 'absolute', left: '50%', top: '120px', transform: 'translateX(-50%)', zIndex: 10, width: 'auto' }
                 },
-                content: '✨ New Version 2.0'
+                content: '✨ VECTRA 2.0'
             },
             'h1': {
-                id: 'h1', type: 'heading', name: 'Headline',
+                id: 'h1', type: 'heading', name: 'Title',
                 props: {
-                    className: 'text-7xl font-extrabold text-slate-900 text-center leading-[1.1] tracking-tight',
-                    style: { position: 'absolute', left: '50%', top: '140px', transform: 'translateX(-50%)', width: '900px', zIndex: 10 }
+                    className: 'text-7xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-b from-white via-white/90 to-white/50 leading-tight',
+                    style: { position: 'absolute', left: '50%', top: '180px', transform: 'translateX(-50%)', width: '800px', zIndex: 10 }
                 },
-                content: 'Ship your startup faster.'
+                content: 'Design at the Speed of Thought.'
             },
             'p1': {
-                id: 'p1', type: 'text', name: 'Subtext',
+                id: 'p1', type: 'text', name: 'Subtitle',
                 props: {
-                    className: 'text-xl text-slate-500 text-center leading-relaxed max-w-2xl',
-                    style: { position: 'absolute', left: '50%', top: '320px', transform: 'translateX(-50%)', width: '600px', zIndex: 10 }
+                    className: 'text-lg text-center text-neutral-400 font-light leading-relaxed',
+                    style: { position: 'absolute', left: '50%', top: '360px', transform: 'translateX(-50%)', width: '500px', zIndex: 10 }
                 },
-                content: 'The visual builder for developers. Export clean, production-ready React code in seconds, not hours.'
+                content: 'The visual builder for developers. Export clean, production-ready React code in seconds.'
             },
-            // Grouping buttons visually (though they are separate nodes)
             'btn-group': {
-                id: 'btn-group', type: 'container', name: 'Button Group', children: ['btn1', 'btn2'],
+                id: 'btn-group', type: 'container', name: 'Buttons', children: ['btn1', 'btn2'],
                 props: {
-                    // Invisible container to hold buttons together if needed, or just visual grouping
-                    className: 'pointer-events-none',
-                    style: { position: 'absolute', left: '50%', top: '420px', transform: 'translateX(-50%)', width: '340px', height: '60px', zIndex: 20 }
+                    className: 'flex gap-4 items-center justify-center',
+                    layoutMode: 'flex', // Buttons stay together
+                    style: { position: 'absolute', left: '50%', top: '460px', transform: 'translateX(-50%)', width: 'auto', height: 'auto', zIndex: 10 }
                 }
             },
             'btn1': {
-                id: 'btn1', type: 'button', name: 'Primary Button',
-                props: {
-                    className: 'px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-semibold text-lg shadow-lg shadow-blue-600/20 transition-all active:scale-95 pointer-events-auto',
-                    style: { position: 'absolute', left: '0px', top: '0px', width: '160px', height: '56px' }
-                },
+                id: 'btn1', type: 'button', name: 'Primary',
+                props: { className: 'px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-500 shadow-lg shadow-blue-500/20' },
                 content: 'Get Started'
             },
             'btn2': {
-                id: 'btn2', type: 'button', name: 'Secondary Button',
-                props: {
-                    className: 'px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-full font-semibold text-lg shadow-sm transition-all active:scale-95 pointer-events-auto',
-                    style: { position: 'absolute', right: '0px', top: '0px', width: '160px', height: '56px' }
-                },
-                content: 'View Demo'
+                id: 'btn2', type: 'button', name: 'Secondary',
+                props: { className: 'px-6 py-3 bg-white/5 border border-white/10 text-white rounded-lg font-semibold hover:bg-white/10' },
+                content: 'Documentation'
             }
         }
     },
 
-    // --- 2. PREMIUM PRICING CARD (Fixed Borders) ---
+    // --- 2. PRICING CARD (Clean & Modern) ---
     pricing: {
         name: 'Pricing Card',
         category: 'Cards',
@@ -94,80 +87,52 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
         rootId: 'root',
         nodes: {
             'root': {
-                id: 'root', type: 'container', name: 'Pricing Card', children: ['badge', 'plan-name', 'price', 'desc', 'sep', 'f1', 'f2', 'f3', 'btn'],
+                id: 'root', type: 'container', name: 'Pricing Card', children: ['badge', 'tier', 'price', 'features', 'btn'],
                 props: {
-                    // FIX: overflow-hidden ensures child elements don't bleed out
-                    className: 'bg-white border border-slate-200 rounded-3xl shadow-xl hover:shadow-2xl transition-all relative overflow-hidden group',
-                    layoutMode: 'canvas',
-                    style: { width: '360px', height: '520px', backgroundColor: '#ffffff', position: 'relative' }
+                    className: 'w-[320px] h-[480px] bg-white rounded-2xl border border-slate-200 shadow-xl relative overflow-hidden group hover:border-blue-500 transition-colors',
+                    layoutMode: 'canvas'
                 }
             },
             'badge': {
-                id: 'badge', type: 'text', name: 'Popular Badge',
+                id: 'badge', type: 'button', name: 'Popular',
                 props: {
-                    className: 'bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm',
-                    style: { position: 'absolute', right: '24px', top: '24px', width: 'auto' }
+                    className: 'px-3 py-1 bg-blue-600 text-white text-[10px] font-bold uppercase rounded-full shadow-sm',
+                    style: { position: 'absolute', right: '20px', top: '20px', zIndex: 10 }
                 },
-                content: 'POPULAR'
+                content: 'MOST POPULAR'
             },
-            'plan-name': {
-                id: 'plan-name', type: 'text', name: 'Plan Name',
-                props: {
-                    className: 'text-sm font-bold text-slate-500 uppercase tracking-wide',
-                    style: { position: 'absolute', left: '32px', top: '32px', width: 'auto' }
-                },
-                content: 'Pro Plan'
+            'tier': {
+                id: 'tier', type: 'text', name: 'Tier Name',
+                props: { className: 'text-sm font-bold text-slate-500 uppercase tracking-wider', style: { position: 'absolute', left: '30px', top: '30px' } },
+                content: 'PRO PLAN'
             },
             'price': {
                 id: 'price', type: 'heading', name: 'Price',
-                props: {
-                    className: 'text-5xl font-extrabold text-slate-900 tracking-tight',
-                    style: { position: 'absolute', left: '32px', top: '65px', width: 'auto' }
-                },
+                props: { className: 'text-5xl font-black text-slate-900', style: { position: 'absolute', left: '30px', top: '60px' } },
                 content: '$49'
             },
-            'desc': {
-                id: 'desc', type: 'text', name: 'Description',
+            'features': {
+                id: 'features', type: 'container', name: 'Feature List', children: ['f1', 'f2', 'f3'],
                 props: {
-                    className: 'text-sm text-slate-400 font-medium',
-                    style: { position: 'absolute', left: '130px', top: '88px', width: 'auto' }
-                },
-                content: '/ month'
-            },
-            'sep': {
-                id: 'sep', type: 'container', name: 'Separator', children: [],
-                props: {
-                    className: 'bg-slate-100',
-                    style: { position: 'absolute', left: '32px', top: '140px', width: '296px', height: '1px' }
+                    className: 'flex flex-col gap-3', layoutMode: 'flex',
+                    style: { position: 'absolute', left: '30px', top: '140px', width: '260px' }
                 }
             },
-            'f1': {
-                id: 'f1', type: 'text', name: 'Feature 1',
-                props: { className: 'text-slate-600 text-sm font-medium', style: { position: 'absolute', left: '32px', top: '170px', width: '280px' } },
-                content: '✓  Unlimited Projects'
-            },
-            'f2': {
-                id: 'f2', type: 'text', name: 'Feature 2',
-                props: { className: 'text-slate-600 text-sm font-medium', style: { position: 'absolute', left: '32px', top: '210px', width: '280px' } },
-                content: '✓  Priority 24/7 Support'
-            },
-            'f3': {
-                id: 'f3', type: 'text', name: 'Feature 3',
-                props: { className: 'text-slate-600 text-sm font-medium', style: { position: 'absolute', left: '32px', top: '250px', width: '280px' } },
-                content: '✓  Advanced Analytics'
-            },
+            'f1': { id: 'f1', type: 'text', name: 'Feature 1', content: '✓ Unlimited Projects', props: { className: 'text-sm text-slate-600' } },
+            'f2': { id: 'f2', type: 'text', name: 'Feature 2', content: '✓ Priority Support', props: { className: 'text-sm text-slate-600' } },
+            'f3': { id: 'f3', type: 'text', name: 'Feature 3', content: '✓ Analytics Dashboard', props: { className: 'text-sm text-slate-600' } },
             'btn': {
-                id: 'btn', type: 'button', name: 'Buy Button',
+                id: 'btn', type: 'button', name: 'Subscribe',
                 props: {
-                    className: 'w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95',
-                    style: { position: 'absolute', left: '32px', bottom: '32px', width: '296px', height: '50px' }
+                    className: 'w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-black transition-all',
+                    style: { position: 'absolute', left: '20px', bottom: '20px', width: '280px' }
                 },
-                content: 'Get Started'
+                content: 'Choose Plan'
             }
         }
     },
 
-    // --- 3. GLASS NAVBAR (Fixed Z-Index) ---
+    // --- 3. SAAS NAV (Glassmorphism) ---
     navbar: {
         name: 'Navigation Bar',
         category: 'Navigation',
@@ -175,86 +140,34 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
         rootId: 'root',
         nodes: {
             'root': {
-                id: 'root', type: 'section', name: 'Navbar', children: ['logo', 'l1', 'l2', 'l3', 'cta'],
+                id: 'root', type: 'section', name: 'Navbar', children: ['logo', 'links', 'cta'],
                 props: {
-                    // Z-Index 50 ensures it stays on top of Hero content
-                    className: 'w-full h-[80px] bg-white/80 backdrop-blur-md border-b border-slate-200 z-50',
-                    layoutMode: 'canvas',
-                    style: { position: 'relative' }
+                    className: 'w-[1000px] h-[70px] bg-white/80 backdrop-blur-md border border-white/20 rounded-full shadow-sm flex items-center px-8 justify-between relative',
+                    layoutMode: 'canvas' // Keeping it canvas for precision, or could be Flex
                 }
             },
             'logo': {
-                id: 'logo', type: 'text', name: 'Logo',
+                id: 'logo', type: 'heading', name: 'Logo',
+                props: { className: 'text-xl font-black text-slate-900 tracking-tighter', style: { position: 'absolute', left: '30px', top: '22px' } },
+                content: 'VECTRA'
+            },
+            'links': {
+                id: 'links', type: 'container', name: 'Links', children: ['l1', 'l2', 'l3'],
                 props: {
-                    className: 'text-xl font-black text-slate-900 tracking-tighter',
-                    style: { position: 'absolute', left: '40px', top: '26px' }
-                },
-                content: '⚡ VECTRA'
-            },
-            'l1': {
-                id: 'l1', type: 'link', name: 'Link 1',
-                props: { className: 'text-sm font-semibold text-slate-600 hover:text-blue-600', style: { position: 'absolute', left: '50%', top: '30px', transform: 'translateX(-120px)' } },
-                content: 'Product'
-            },
-            'l2': {
-                id: 'l2', type: 'link', name: 'Link 2',
-                props: { className: 'text-sm font-semibold text-slate-600 hover:text-blue-600', style: { position: 'absolute', left: '50%', top: '30px', transform: 'translateX(0px)' } },
-                content: 'Solutions'
-            },
-            'l3': {
-                id: 'l3', type: 'link', name: 'Link 3',
-                props: { className: 'text-sm font-semibold text-slate-600 hover:text-blue-600', style: { position: 'absolute', left: '50%', top: '30px', transform: 'translateX(120px)' } },
-                content: 'Pricing'
-            },
-            'cta': {
-                id: 'cta', type: 'button', name: 'Nav Button',
-                props: {
-                    className: 'px-5 py-2 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-all',
-                    style: { position: 'absolute', right: '40px', top: '20px', height: '40px' }
-                },
-                content: 'Sign In'
-            }
-        }
-    },
-
-    // --- 4. TESTIMONIAL ---
-    testimonial: {
-        name: 'Testimonial Card',
-        category: 'Cards',
-        icon: MessageSquare,
-        rootId: 'root',
-        nodes: {
-            'root': {
-                id: 'root', type: 'container', name: 'Testimonial', children: ['quote', 'author', 'role'],
-                props: {
-                    className: 'bg-white p-8 rounded-2xl shadow-sm border border-slate-100 relative',
-                    layoutMode: 'canvas',
-                    style: { width: '400px', height: '220px', backgroundColor: '#ffffff', position: 'relative' }
+                    className: 'flex gap-6', layoutMode: 'flex',
+                    style: { position: 'absolute', left: '50%', top: '25px', transform: 'translateX(-50%)' }
                 }
             },
-            'quote': {
-                id: 'quote', type: 'text', name: 'Quote',
+            'l1': { id: 'l1', type: 'text', name: 'Link 1', content: 'Product', props: { className: 'text-sm font-medium text-slate-600 hover:text-blue-600 cursor-pointer' } },
+            'l2': { id: 'l2', type: 'text', name: 'Link 2', content: 'Solutions', props: { className: 'text-sm font-medium text-slate-600 hover:text-blue-600 cursor-pointer' } },
+            'l3': { id: 'l3', type: 'text', name: 'Link 3', content: 'Pricing', props: { className: 'text-sm font-medium text-slate-600 hover:text-blue-600 cursor-pointer' } },
+            'cta': {
+                id: 'cta', type: 'button', name: 'Sign In',
                 props: {
-                    className: 'text-lg text-slate-700 italic leading-relaxed',
-                    style: { position: 'absolute', left: '32px', top: '32px', width: '336px' }
+                    className: 'px-5 py-2 bg-slate-900 text-white rounded-full text-sm font-bold hover:bg-slate-800',
+                    style: { position: 'absolute', right: '10px', top: '15px' }
                 },
-                content: '"Vectra completely changed how we build landing pages. It\'s exactly the tool I\'ve been waiting for."'
-            },
-            'author': {
-                id: 'author', type: 'text', name: 'Author Name',
-                props: {
-                    className: 'font-bold text-slate-900',
-                    style: { position: 'absolute', left: '32px', bottom: '50px' }
-                },
-                content: 'Sarah Jenkins'
-            },
-            'role': {
-                id: 'role', type: 'text', name: 'Author Role',
-                props: {
-                    className: 'text-sm text-slate-500',
-                    style: { position: 'absolute', left: '32px', bottom: '30px' }
-                },
-                content: 'CTO at TechFlow'
+                content: 'Sign In'
             }
         }
     }

@@ -4,7 +4,11 @@ export type ActionType =
     | { type: 'NAVIGATE'; payload: string }
     | { type: 'OPEN_MODAL'; payload: string }
     | { type: 'SCROLL_TO'; payload: string }
-    | { type: 'TOGGLE_VISIBILITY'; payload: string };
+    | { type: 'TOGGLE_VISIBILITY'; payload: string }
+    // New Interaction Builder Types
+    | { action: 'link'; value: string }
+    | { action: 'scroll'; value: string }
+    | { action: 'navigate'; value: string };
 
 export interface GlobalStyles {
     colors: Record<string, string>;

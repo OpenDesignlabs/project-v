@@ -1,6 +1,7 @@
 import {
     Type, Square, Box, Layout, Grid, Image as ImageIcon, Video,
-    FormInput, CheckSquare, List, Link, Frame, Columns, AlignCenter, CreditCard, Globe, Monitor
+    FormInput, CheckSquare, List, Link, Frame, Columns, AlignCenter, CreditCard, Globe, Monitor,
+    Sparkles, Zap
 } from 'lucide-react';
 import type { ComponentConfig, VectraProject } from '../types';
 
@@ -65,6 +66,25 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
         defaultProps: { className: 'w-full aspect-video bg-slate-900 rounded-xl flex items-center justify-center text-white' }, defaultContent: 'Video Placeholder'
     },
 
+    // --- MARKETPLACE (New Category) ---
+    hero_geometric: {
+        icon: Sparkles,
+        label: 'Geometric Hero',
+        category: 'sections',
+        defaultProps: {},
+        defaultContent: ''
+    },
+    feature_hover: {
+        icon: Zap,
+        label: 'Hover Features',
+        category: 'sections',
+        defaultProps: {
+            className: 'w-full relative bg-white',
+            layoutMode: 'canvas'
+        },
+        defaultContent: ''
+    },
+
     // --- SECTIONS (Pre-built) ---
     hero: {
         icon: AlignCenter, label: 'Hero Section', category: 'sections',
@@ -83,15 +103,15 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
     canvas: {
         icon: Frame, label: 'Artboard', category: 'layout',
         defaultProps: {
-            className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5 min-h-[600px]',
-            style: { width: '800px', height: '600px', position: 'absolute', backgroundColor: '#ffffff' }
+            className: 'bg-[#F2F3F5] border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5 min-h-[600px]',
+            style: { width: '800px', height: '600px', position: 'absolute', backgroundColor: '#F2F3F5' }
         }
     },
     webpage: {
         icon: Monitor, label: 'Web Page', category: 'layout',
         defaultProps: {
-            className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5 min-h-[800px]',
-            style: { width: '1100px', height: '1200px', position: 'absolute', backgroundColor: '#ffffff' }
+            className: 'bg-[#F2F3F5] border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5 min-h-[800px]',
+            style: { width: '1100px', height: '1200px', position: 'absolute', backgroundColor: '#F2F3F5' }
         }
     },
 };
@@ -108,9 +128,9 @@ export const INITIAL_DATA: VectraProject = {
         children: [],
         props: {
             showLayoutGrid: false,
-            className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5',
+            className: 'bg-[#F2F3F5] border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5',
             // Positioned at X: 100, Width: 1100
-            style: { position: 'absolute', left: '100px', top: '60px', width: '1100px', height: '1200px', backgroundColor: '#ffffff' }
+            style: { position: 'absolute', left: '100px', top: '60px', width: '1100px', height: '1200px', backgroundColor: '#F2F3F5' }
         }
     },
 
@@ -122,9 +142,9 @@ export const INITIAL_DATA: VectraProject = {
         children: [],
         props: {
             showLayoutGrid: false,
-            className: 'bg-white border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5',
+            className: 'bg-[#F2F3F5] border border-slate-300 shadow-2xl relative overflow-hidden ring-1 ring-black/5',
             // Positioned at X: 1300 (100 + 1100 + gap 100), Width: 390 (iPhone)
-            style: { position: 'absolute', left: '1300px', top: '60px', width: '390px', height: '844px', backgroundColor: '#ffffff' }
+            style: { position: 'absolute', left: '1300px', top: '60px', width: '390px', height: '844px', backgroundColor: '#F2F3F5' }
         }
     }
 };

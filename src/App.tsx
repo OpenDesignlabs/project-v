@@ -1,12 +1,23 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { EditorProvider, useEditor } from './context/EditorContext';
-import { Header } from './components/Header';
-import { LeftSidebar } from './components/LeftSidebar';
-import { RightSidebar } from './components/RightSidebar';
-import { Canvas } from './components/Canvas';
+import { Loader2 } from 'lucide-react';
 import { ImportModal } from './components/ImportModal';
 
-// EditorLayout uses the context for keyboard shortcuts
+// 1. LAZY LOAD MAJOR CHUNKS (Split JS Bundle)
+const Header = lazy(() => import('./components/Header').then(module => ({ default: module.Header })));
+const LeftSidebar = lazy(() => import('./components/LeftSidebar').then(module => ({ default: module.LeftSidebar })));
+const RightSidebar = lazy(() => import('./components/RightSidebar').then(module => ({ default: module.RightSidebar })));
+const Canvas = lazy(() => import('./components/Canvas').then(module => ({ default: module.Canvas })));
+
+// 2. LOADING SCREEN (Shown instanty)
+const LoadingScreen = () => (
+  <div className="w-full h-screen bg-[#1e1e1e] flex flex-col items-center justify-center text-[#999999] gap-3">
+    <Loader2 size={32} className="animate-spin text-[#007acc]" />
+    <span className="text-xs font-mono uppercase tracking-wider">Initializing Vectra Engine...</span>
+  </div>
+);
+
+// EditorLayout contains the keyboard shortcuts logic that relies on useEditor()
 const EditorLayout = () => {
   const { history, deleteElement, selectedId, setSelectedId, toggleInsertDrawer, setActivePanel } = useEditor();
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -68,13 +79,15 @@ const EditorLayout = () => {
   }, [history, deleteElement, selectedId, setSelectedId, toggleInsertDrawer, isImportOpen]);
 
   return (
-    <div className="flex flex-col h-screen bg-slate-100 text-slate-900 overflow-hidden font-sans select-none">
-      <Header />
-      <div className="flex flex-1 overflow-hidden relative">
-        <LeftSidebar />
-        <Canvas />
-        <RightSidebar />
-      </div>
+    <div className="h-screen w-full flex flex-col bg-[#1e1e1e] overflow-hidden select-none font-sans">
+      <Suspense fallback={<LoadingScreen />}>
+        <Header />
+        <div className="flex-1 flex overflow-hidden relative">
+          <LeftSidebar />
+          <Canvas />
+          <RightSidebar />
+        </div>
+      </Suspense>
 
       {/* Import Modal */}
       {isImportOpen && <ImportModal onClose={() => setIsImportOpen(false)} />}
@@ -82,12 +95,12 @@ const EditorLayout = () => {
   );
 };
 
-function App() {
+const App = () => {
   return (
     <EditorProvider>
       <EditorLayout />
     </EditorProvider>
   );
-}
+};
 
 export default App;

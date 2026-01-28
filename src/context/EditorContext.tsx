@@ -156,14 +156,25 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
     };
 
-    const runAction = useCallback((action: ActionType) => {
-        if (action.type === 'NAVIGATE') {
-            if (action.payload.startsWith('http')) { window.open(action.payload, '_blank'); return; }
-            if (elements[action.payload]) { setActivePageId(action.payload); setPan({ x: 0, y: 0 }); }
-        } else if (action.type === 'SCROLL_TO') {
-            document.getElementById(action.payload)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else if (action.type === 'TOGGLE_VISIBILITY') {
-            const targetId = action.payload;
+    const runAction = useCallback((act: ActionType) => {
+        // Handle new Interaction Builder types
+        if ('action' in act) {
+            if (act.action === 'link' && act.value) {
+                window.open(act.value, '_blank');
+            } else if (act.action === 'scroll' && act.value) {
+                document.getElementById(act.value)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            return;
+        }
+
+        // Handle legacy types
+        if (act.type === 'NAVIGATE') {
+            if (act.payload.startsWith('http')) { window.open(act.payload, '_blank'); return; }
+            if (elements[act.payload]) { setActivePageId(act.payload); setPan({ x: 0, y: 0 }); }
+        } else if (act.type === 'SCROLL_TO') {
+            document.getElementById(act.payload)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (act.type === 'TOGGLE_VISIBILITY') {
+            const targetId = act.payload;
             if (elements[targetId]) {
                 setElements(prev => ({
                     ...prev,

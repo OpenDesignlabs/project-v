@@ -53,7 +53,12 @@ export const generateCode = (elements: VectraProject, rootId: string): string =>
 
         if (node.type === 'text') return `${spaces}<p${classNameProp}${styleProp}>${node.content}</p>\n`;
         if (node.type === 'button') {
-            const onClick = node.events?.onClick ? ` onClick={() => console.log('Action: ${node.events.onClick.type}')}` : '';
+            let onClick = '';
+            if (node.events?.onClick) {
+                const evt = node.events.onClick;
+                const actionLabel = 'action' in evt ? evt.action : evt.type;
+                onClick = ` onClick={() => console.log('Action: ${actionLabel}')}`;
+            }
             return `${spaces}<button${classNameProp}${styleProp}${onClick}>${node.content}</button>\n`;
         }
         if (node.type === 'image') {

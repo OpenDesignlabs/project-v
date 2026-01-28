@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { RenderNode } from './RenderNode';
-import { Toolbar } from './Toolbar';
 import { COMPONENT_TYPES } from '../data/constants';
 import { TEMPLATES } from '../data/templates';
 import { instantiateTemplate } from '../utils/templateUtils';
@@ -201,11 +200,11 @@ export const Canvas = () => {
     return (
         <div
             ref={canvasRef}
-            className={`flex-1 bg-slate-100 relative flex flex-col ${previewMode ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}
+            className={`flex-1 bg-[#d7dae0] relative flex flex-col ${previewMode ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'}`}
             onDrop={handleGlobalDrop}
             onDragOver={handleDragOver}
         >
-            {!previewMode && <Toolbar />}
+            {/* Toolbar removed per user request */}
 
             {/* Zoom controls removed - use Ctrl+Scroll or pinch to zoom */}
 
@@ -214,19 +213,7 @@ export const Canvas = () => {
                 style={{ cursor: !previewMode && (spacePressed || isPanning) ? 'grab' : interaction ? 'grabbing' : 'default' }}
                 onMouseDown={handleMouseDown}
             >
-                {/* Grid only in Edit Mode */}
-                {!previewMode && (
-                    <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                            backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)',
-                            backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
-                            backgroundPosition: `${pan.x}px ${pan.y}px`,
-                            opacity: 0.2
-                        }}
-                    />
-                )}
-
+                {/* Grid Removed per user request */}
                 <div style={canvasStyle}>
                     <RenderNode elementId={activePageId} />
 
