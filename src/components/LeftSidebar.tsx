@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { TEMPLATES } from '../data/templates';
+import { LayersPanel } from './panels/LayersPanel';
 import {
     Plus, Layers, File, Image as ImageIcon, Settings,
     Search, X, Type, Layout, FormInput, CreditCard, Puzzle, Upload, ChevronRight
@@ -72,32 +73,24 @@ export const LeftSidebar = () => {
     };
 
     return (
-        // ROOT: Dark Sidebar Background
         <div className="w-[60px] h-full flex flex-col border-r border-[#3f3f46] bg-[#333333] relative z-50">
 
-            {/* 1. THE MAIN RAIL (Activity Bar Style) */}
+            {/* 1. THE MAIN RAIL */}
             <div className="flex flex-col items-center py-4 gap-4 h-full bg-[#333333] z-50 relative">
-                <NavButton
-                    icon={Plus}
-                    active={activePanel === 'add'}
-                    onClick={() => togglePanel('add')}
-                    tooltip="Insert Elements"
-                />
+                <NavButton icon={Plus} active={activePanel === 'add'} onClick={() => togglePanel('add')} tooltip="Insert Elements" />
                 <div className="w-8 h-[1px] bg-[#4f4f4f] my-1" />
-                <NavButton icon={Layers} active={activePanel === 'layers'} onClick={() => togglePanel('layers')} tooltip="Layers" />
+                <NavButton icon={Layers} active={activePanel === 'layers'} onClick={() => togglePanel('layers')} tooltip="Layers Tree" />
                 <NavButton icon={File} active={activePanel === 'pages'} onClick={() => togglePanel('pages')} tooltip="Pages" />
                 <NavButton icon={ImageIcon} active={activePanel === 'assets'} onClick={() => togglePanel('assets')} tooltip="Assets" />
-
                 <div className="mt-auto">
                     <NavButton icon={Settings} active={activePanel === 'settings'} onClick={() => togglePanel('settings')} tooltip="Settings" />
                 </div>
             </div>
 
-            {/* 2. THE DRAWER (Floating Multi-Layered Overlay) */}
+            {/* 2. ADD DRAWER */}
             {activePanel === 'add' && (
                 <div className="absolute left-[60px] top-0 bottom-0 w-[420px] bg-[#252526] border-r border-[#3f3f46] shadow-2xl z-40 flex text-[#cccccc]">
-
-                    {/* A. Sub-Category Rail (Left Strip of Drawer) */}
+                    {/* A. Sub-Category Rail */}
                     <div className="w-16 bg-[#2d2d2d] border-r border-[#3f3f46] flex flex-col items-center py-4 gap-1 overflow-y-auto no-scrollbar">
                         {CATEGORIES.map(cat => (
                             <button
@@ -114,9 +107,8 @@ export const LeftSidebar = () => {
                         ))}
                     </div>
 
-                    {/* B. Content Panel (Right Side of Drawer) */}
+                    {/* B. Content Panel */}
                     <div className="flex-1 flex flex-col min-w-0 bg-[#252526]">
-                        {/* Header */}
                         <div className="p-4 border-b border-[#3f3f46] flex items-center justify-between">
                             <h2 className="font-bold text-[#cccccc] text-xs uppercase tracking-wide">
                                 {search ? 'Search Results' : CATEGORIES.find(c => c.id === activeCat)?.label}
@@ -126,7 +118,6 @@ export const LeftSidebar = () => {
                             </button>
                         </div>
 
-                        {/* Search Input */}
                         <div className="px-4 py-3 border-b border-[#3f3f46] bg-[#2d2d2d]">
                             <div className="relative">
                                 <Search size={14} className="absolute left-3 top-2.5 text-[#999999]" />
@@ -141,43 +132,24 @@ export const LeftSidebar = () => {
                             </div>
                         </div>
 
-                        {/* List Content */}
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-
-                            {/* Component Grid */}
                             {filteredComponents.length > 0 && (
                                 <div className="grid grid-cols-2 gap-3 mb-6">
                                     {filteredComponents.map(([type, config]) => (
-                                        <div
-                                            key={type}
-                                            draggable
-                                            onDragStart={() => setDragData({ type: 'NEW', payload: type })}
-                                            className="group flex flex-col items-center justify-center p-4 bg-[#2d2d2d] border border-[#3e3e42] rounded-md cursor-grab hover:border-[#007acc] hover:bg-[#37373d] transition-all active:cursor-grabbing text-center"
-                                        >
+                                        <div key={type} draggable onDragStart={() => setDragData({ type: 'NEW', payload: type })} className="group flex flex-col items-center justify-center p-4 bg-[#2d2d2d] border border-[#3e3e42] rounded-md cursor-grab hover:border-[#007acc] hover:bg-[#37373d] transition-all active:cursor-grabbing text-center">
                                             <div className="w-10 h-10 flex items-center justify-center bg-[#333333] border border-[#3f3f46] rounded mb-3 text-[#cccccc] group-hover:text-white transition-colors">
                                                 {config.icon && <config.icon size={20} strokeWidth={1.5} />}
                                             </div>
-                                            <span className="text-[11px] font-medium text-[#cccccc] group-hover:text-white transition-colors">
-                                                {config.label}
-                                            </span>
+                                            <span className="text-[11px] font-medium text-[#cccccc] group-hover:text-white transition-colors">{config.label}</span>
                                         </div>
                                     ))}
                                 </div>
                             )}
-
-                            {/* Template List */}
                             {filteredTemplates.length > 0 && (
                                 <div className="flex flex-col gap-3">
                                     {filteredTemplates.map(([key, tpl]) => (
-                                        <div
-                                            key={key}
-                                            draggable
-                                            onDragStart={() => setDragData({ type: 'TEMPLATE', payload: key })}
-                                            className="group flex items-center gap-4 p-3 bg-[#2d2d2d] border border-[#3e3e42] rounded-md cursor-grab hover:border-[#007acc] hover:bg-[#37373d] transition-all active:cursor-grabbing"
-                                        >
-                                            <div className="w-12 h-12 rounded bg-[#333333] border border-[#3f3f46] flex items-center justify-center text-[#cccccc] group-hover:text-white shrink-0">
-                                                {tpl.icon && <tpl.icon size={20} />}
-                                            </div>
+                                        <div key={key} draggable onDragStart={() => setDragData({ type: 'TEMPLATE', payload: key })} className="group flex items-center gap-4 p-3 bg-[#2d2d2d] border border-[#3e3e42] rounded-md cursor-grab hover:border-[#007acc] hover:bg-[#37373d] transition-all active:cursor-grabbing">
+                                            <div className="w-12 h-12 rounded bg-[#333333] border border-[#3f3f46] flex items-center justify-center text-[#cccccc] group-hover:text-white shrink-0">{tpl.icon && <tpl.icon size={20} />}</div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-sm font-medium text-[#cccccc] group-hover:text-white truncate">{tpl.name}</div>
                                                 <div className="text-[10px] text-[#999999]">{tpl.category}</div>
@@ -214,42 +186,34 @@ export const LeftSidebar = () => {
                 </div>
             )}
 
-            {/* Placeholder for other panels (Layers etc) */}
-            {activePanel && activePanel !== 'add' && (
+            {/* 3. LAYERS PANEL */}
+            {activePanel === 'layers' && (
+                <div className="absolute left-[60px] top-0 bottom-0 w-[300px] bg-[#252526] border-r border-[#3f3f46] shadow-xl z-40 flex flex-col animate-in slide-in-from-left-5 duration-100">
+                    <LayersPanel />
+                </div>
+            )}
+
+            {/* 4. OTHER PANELS (Placeholder for now) */}
+            {activePanel && !['add', 'layers'].includes(activePanel) && (
                 <div className="absolute left-[60px] top-0 bottom-0 w-[300px] bg-[#252526] border-r border-[#3f3f46] shadow-xl z-40 p-6 flex flex-col text-[#cccccc]">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="font-bold capitalize text-[#cccccc]">{activePanel}</h2>
                         <button onClick={() => setActivePanel(null)} className="text-[#999999] hover:text-white"><X size={16} /></button>
                     </div>
-                    <p className="text-sm text-[#999999]">Panel content goes here.</p>
+                    <div className="flex flex-col items-center justify-center h-40 text-center text-[#666]">
+                        <Settings size={24} className="mb-2 opacity-50" />
+                        <span className="text-xs">This panel is under construction.</span>
+                    </div>
                 </div>
             )}
         </div>
     );
 };
 
-// Helper for Rail Buttons (Dark Mode)
-const NavButton = ({ icon: Icon, active, onClick, tooltip }: {
-    icon: any;
-    active: boolean;
-    onClick: () => void;
-    tooltip?: string;
-}) => (
-    <button
-        onClick={onClick}
-        className={cn(
-            "w-10 h-10 rounded flex items-center justify-center transition-all duration-100 relative group",
-            active
-                ? "text-white opacity-100 border-l-2 border-[#007acc] bg-[#252526]" // Active
-                : "text-[#999999] opacity-70 hover:opacity-100 hover:text-white"
-        )}
-    >
+// Helper for Rail Buttons
+const NavButton = ({ icon: Icon, active, onClick, tooltip }: { icon: any; active: boolean; onClick: () => void; tooltip?: string; }) => (
+    <button onClick={onClick} className={cn("w-10 h-10 rounded flex items-center justify-center transition-all duration-100 relative group", active ? "text-white opacity-100 border-l-2 border-[#007acc] bg-[#252526]" : "text-[#999999] opacity-70 hover:opacity-100 hover:text-white")}>
         <Icon size={22} strokeWidth={1.5} />
-        {/* Tooltip on Hover */}
-        {tooltip && (
-            <span className="absolute left-full ml-3 px-2 py-1 bg-[#252526] text-white text-[10px] rounded border border-[#3f3f46] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-[60] shadow-md">
-                {tooltip}
-            </span>
-        )}
+        {tooltip && <span className="absolute left-full ml-3 px-2 py-1 bg-[#252526] text-white text-[10px] rounded border border-[#3f3f46] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-[60] shadow-md">{tooltip}</span>}
     </button>
 );
