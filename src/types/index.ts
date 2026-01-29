@@ -79,9 +79,9 @@ export interface DragData {
 export interface InteractionState {
     type: 'MOVE' | 'RESIZE';
     itemId: string;
-    startX: number;
-    startY: number;
-    startRect: { left: number; top: number; width: number; height: number };
+    startX?: number;
+    startY?: number;
+    startRect?: { left: number; top: number; width: number; height: number };
     handle?: string;
 }
 

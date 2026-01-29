@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { generateCode, copyToClipboard } from '../utils/codeGenerator';
-import { INITIAL_DATA } from '../data/constants';
+import { INITIAL_DATA, STORAGE_KEY } from '../data/constants';
 import {
     Play, Undo, Redo, Code,
     Check, X, Copy, Trash2,
@@ -35,7 +35,7 @@ export const Header = () => {
     const handleReset = () => {
         if (confirm('Reset project to default? This will clear all changes.')) {
             setElements(INITIAL_DATA);
-            localStorage.removeItem('vectra_design_v50');
+            localStorage.removeItem(STORAGE_KEY);
             window.location.reload();
         }
     };

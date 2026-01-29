@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { VectraProject, DragData, InteractionState, Guide, Asset, GlobalStyles, EditorTool, DeviceType, ActionType, ViewMode, ComponentConfig } from '../types';
-import { INITIAL_DATA, COMPONENT_TYPES } from '../data/constants';
+import { INITIAL_DATA, COMPONENT_TYPES, STORAGE_KEY } from '../data/constants';
 
 // Sidebar Panel Types
 export type SidebarPanel = 'add' | 'layers' | 'pages' | 'assets' | 'settings' | null;
@@ -59,8 +59,9 @@ interface ExtendedEditorContextType {
 const EditorContext = createContext<ExtendedEditorContextType | undefined>(undefined);
 
 export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    // FIX: Using STORAGE_KEY (v63) for Redesigned Infinite Canvas System
     const [elements, setElements] = useState<VectraProject>(() => {
-        try { return JSON.parse(localStorage.getItem('vectra_design_v50') || 'null') || INITIAL_DATA; }
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || INITIAL_DATA; }
         catch { return INITIAL_DATA; }
     });
 
@@ -99,6 +100,11 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setActivePanel(prev => prev === 'add' ? null : 'add');
     }, []);
 
+    useEffect(() => {
+        const timer = setTimeout(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(elements)), 1000);
+        return () => clearTimeout(timer);
+    }, [elements]);
+
     // Toggle panel - if same panel, close it
     const togglePanel = useCallback((panel: SidebarPanel) => {
         setActivePanel(prev => prev === panel ? null : panel);
@@ -118,10 +124,7 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         });
     }, []);
 
-    useEffect(() => {
-        const timer = setTimeout(() => localStorage.setItem('vectra_design_v50', JSON.stringify(elements)), 1000);
-        return () => clearTimeout(timer);
-    }, [elements]);
+
 
     useEffect(() => {
         const root = document.documentElement;
@@ -238,11 +241,13 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (!interaction) return;
         const { type, itemId, startX, startY, startRect, handle } = interaction;
 
-        const deltaX = (e.clientX - startX) / zoom;
-        const deltaY = (e.clientY - startY) / zoom;
+        const currentStartX = startX || 0;
+        const currentStartY = startY || 0;
+        const deltaX = (e.clientX - currentStartX) / zoom;
+        const deltaY = (e.clientY - currentStartY) / zoom;
         const THRESHOLD = 5;
 
-        const newRect = { ...startRect };
+        const newRect = startRect ? { ...startRect } : { left: 0, top: 0, width: 0, height: 0 };
         let newGuides: Guide[] = [];
 
         const parentId = Object.keys(elements).find(k => elements[k].children?.includes(itemId));
@@ -263,10 +268,10 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
 
         if (type === 'MOVE') {
-            let proposedLeft = startRect.left + deltaX;
-            let proposedTop = startRect.top + deltaY;
-            const w = startRect.width;
-            const h = startRect.height;
+            let proposedLeft = (startRect?.left || 0) + deltaX;
+            let proposedTop = (startRect?.top || 0) + deltaY;
+            const w = startRect?.width || 0;
+            const h = startRect?.height || 0;
             let snappedX = false, snappedY = false;
 
             const myX = [
@@ -347,7 +352,7 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 newRect.top = snappedY ? proposedTop : Math.round(proposedTop);
             }
 
-        } else if (type === 'RESIZE' && handle) {
+        } else if (type === 'RESIZE' && handle && startRect) {
             if (handle.includes('e')) newRect.width = Math.max(20, startRect.width + deltaX);
             if (handle.includes('w')) { newRect.width = Math.max(20, startRect.width - deltaX); newRect.left = startRect.left + deltaX; }
             if (handle.includes('s')) newRect.height = Math.max(20, startRect.height + deltaY);
