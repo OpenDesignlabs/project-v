@@ -28,30 +28,23 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
     if (element.hidden && !previewMode) return <div className="hidden" />;
     if (element.hidden && previewMode) return null;
 
-    // --- IDENTITY ---
     const isSelected = selectedId === elementId && !previewMode;
     const isHovered = hoveredId === elementId && !isSelected && !previewMode && !dragData;
-    const isArtboard = element.type === 'canvas' || element.type === 'webpage';
-
-    // Parent Context
+    
     const parentId = Object.keys(elements).find(key => elements[key].children?.includes(elementId));
     const parent = parentId ? elements[parentId] : null;
     const isParentCanvas = parent ? (parent.props.layoutMode === 'canvas') : false;
-
-    // Movement Rules:
-    // 1. Artboards (Frames) can act as parents but are NOT draggable themselves in this mode
-    // 2. Items inside Artboards ARE draggable
+    const isArtboard = element.type === 'canvas' || element.type === 'webpage';
     const canMove = !element.locked && activeTool === 'select' && isParentCanvas && !isArtboard && !isMobileMirror;
 
-    // --- MOUSE HANDLERS ---
+    // --- POINTER HANDLERS ---
     const handlePointerDown = (e: React.PointerEvent) => {
         if (previewMode) return;
         if (activeTool === 'select') e.preventDefault();
 
-        // Stop bubbling if we clicked a valid object (unless locked)
         if (!element.locked) e.stopPropagation();
 
-        setSelectedId(elementId);
+        if (!element.locked) setSelectedId(elementId);
 
         if (activeTool === 'type' && ['text', 'button', 'heading'].includes(element.type)) {
             setIsEditing(true); return;
@@ -59,8 +52,8 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
 
         if (canMove && nodeRef.current) {
             e.currentTarget.setPointerCapture(e.pointerId);
+            e.stopPropagation();
 
-            // Calculate starting position relative to parent
             const style = element.props.style || {};
             const currentLeft = parseFloat(String(style.left || 0));
             const currentTop = parseFloat(String(style.top || 0));
@@ -80,21 +73,44 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         if (interaction?.type === 'MOVE' && interaction.itemId === elementId) {
             e.stopPropagation();
 
-            // Calculate Delta relative to Zoom
+            // 1. Calculate Raw New Position
             const deltaX = (e.clientX - dragStart.current.x) / zoom;
             const deltaY = (e.clientY - dragStart.current.y) / zoom;
 
-            const newLeft = dragStart.current.left + deltaX;
-            const newTop = dragStart.current.top + deltaY;
+            let newLeft = dragStart.current.left + deltaX;
+            let newTop = dragStart.current.top + deltaY;
+
+            // 2. BOUNDARY CLAMP (Collision Detection)
+            // Get dimensions of the Parent and the Element itself
+            const parentEl = nodeRef.current?.parentElement;
+            if (parentEl && nodeRef.current) {
+                const pWidth = parentEl.offsetWidth;
+                const pHeight = parentEl.offsetHeight;
+                const elWidth = nodeRef.current.offsetWidth;
+                const elHeight = nodeRef.current.offsetHeight;
+
+                // Clamp X: Cannot go below 0 or above (ParentWidth - ElementWidth)
+                const maxLeft = Math.max(0, pWidth - elWidth);
+                newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+
+                // Clamp Y: Cannot go below 0 or above (ParentHeight - ElementHeight)
+                const maxTop = Math.max(0, pHeight - elHeight);
+                newTop = Math.max(0, Math.min(newTop, maxTop));
+            }
 
             const newElements = { ...elements };
-            newElements[elementId].props.style = {
-                ...newElements[elementId].props.style,
-                left: `${Math.round(newLeft)}px`,
-                top: `${Math.round(newTop)}px`,
-                position: 'absolute' // Enforce absolute
-            };
+            const newStyle = { ...newElements[elementId].props.style };
 
+            // Cleanup conflicting props
+            if ('right' in newStyle) delete newStyle.right;
+            if ('bottom' in newStyle) delete newStyle.bottom;
+
+            // Apply Clamped Position
+            newStyle.left = `${Math.round(newLeft)}px`;
+            newStyle.top = `${Math.round(newTop)}px`;
+            newStyle.position = 'absolute';
+
+            newElements[elementId].props.style = newStyle;
             updateProject(newElements);
         }
     };
@@ -106,7 +122,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         }
     };
 
-    // --- DROP INTO CONTAINER/ARTBOARD ---
+    // --- DROP LOGIC ---
     const handleDrop = (e: React.DragEvent) => {
         e.stopPropagation(); e.preventDefault();
         if (!dragData || (!isArtboard && !element.props.layoutMode) || element.locked || previewMode) return;
@@ -114,7 +130,6 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         const rect = nodeRef.current?.getBoundingClientRect();
         if (!rect) return;
 
-        // Mouse relative to This Container
         const dropX = (e.clientX - rect.left) / zoom;
         const dropY = (e.clientY - rect.top) / zoom;
 
@@ -123,11 +138,9 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
             if (tpl) {
                 const { newNodes, rootId } = instantiateTemplate(tpl.rootId, tpl.nodes);
 
-                // Get Dimensions
                 const w = parseFloat(String(newNodes[rootId].props.style?.width || 0));
                 const h = parseFloat(String(newNodes[rootId].props.style?.height || 0));
 
-                // Center Drop
                 newNodes[rootId].props.style = {
                     ...newNodes[rootId].props.style,
                     position: 'absolute',
@@ -135,10 +148,10 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                     top: `${Math.round(dropY - h / 2)}px`
                 };
 
-                // Auto-Expand Artboard if dropped at bottom
+                // Auto-Expand if dropping at bottom (Long Scroll feature)
                 if (isArtboard) {
                     const currentH = parseFloat(String(element.props.style?.height || rect.height / zoom));
-                    const bottomEdge = (dropY - h / 2) + h + 100; // +100px buffer for long scroll
+                    const bottomEdge = (dropY - h / 2) + h + 100; // +100px buffer
                     if (bottomEdge > currentH) {
                         const newElements = { ...elements, ...newNodes };
                         if (!newElements[elementId].props.style) newElements[elementId].props.style = {};
@@ -160,17 +173,16 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         setDragData(null);
     };
 
-    // --- STYLE SANITIZATION (The Redesign) ---
+    // --- STYLE SANITIZATION ---
     let finalStyle: React.CSSProperties = { ...element.props.style };
     let finalClass = element.props.className || '';
 
     // RULE 1: Artboards are Hard Boundaries
     if (isArtboard) {
         finalStyle.display = 'block';
-        finalStyle.position = 'absolute'; // Placed on Infinite Canvas
-        finalStyle.overflow = 'hidden';   // HARD BOUNDARY
+        finalStyle.position = 'absolute';
+        finalStyle.overflow = 'hidden'; // HARD BOUNDARY
         finalStyle.backgroundColor = finalStyle.backgroundColor || '#f2f0ef';
-        // Ensure shadow for visibility
         finalClass = cn(finalClass, 'shadow-xl ring-1 ring-black/10');
     }
 
@@ -179,7 +191,6 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         finalStyle.position = 'absolute';
         finalStyle.left = finalStyle.left || '0px';
         finalStyle.top = finalStyle.top || '0px';
-        // Strip layout classes
         finalClass = finalClass.replace(/relative|fixed|sticky/g, '');
     }
 
@@ -223,14 +234,13 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                 'box-border',
                 isSelected && !isMobileMirror && !isEditing && 'outline outline-2 outline-blue-500 z-50',
                 isHovered && !isSelected && !isMobileMirror && 'outline outline-2 outline-blue-500 z-40',
-                canMove ? 'cursor-move' : '',
-                isArtboard ? '' : ''
+                canMove ? 'cursor-move' : ''
             )}
             style={finalStyle}
             onPointerOver={(e) => { if (previewMode) return; e.stopPropagation(); setHoveredId(elementId); }}
             onPointerOut={() => { if (!previewMode) setHoveredId(null); }}
         >
-            {/* RESIZER for Artboards (Long Scroll feature) & Selected Items */}
+            {/* RESIZER for Artboards (Long Scroll) & Selected Items */}
             {isSelected && !isMobileMirror && !isEditing && !element.locked && (isParentCanvas || isArtboard) && (
                 <Resizer elementId={elementId} />
             )}
