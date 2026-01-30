@@ -7,6 +7,7 @@ import { cn } from '../lib/utils';
 import { GeometricShapesBackground } from './marketplace/GeometricShapes';
 import { FeaturesSectionWithHoverEffects } from './marketplace/FeatureHover';
 import { HeroGeometric } from './marketplace/HeroGeometric';
+import { Plus } from 'lucide-react';
 
 interface RenderNodeProps { elementId: string; isMobileMirror?: boolean; }
 
@@ -14,7 +15,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
     const {
         elements, selectedId, setSelectedId, hoveredId, setHoveredId,
         previewMode, dragData, setDragData, updateProject,
-        interaction, setInteraction, zoom, activeTool
+        interaction, setInteraction, zoom, activeTool, setActivePanel
     } = useEditor();
 
     const element = elements[elementId];
@@ -25,25 +26,31 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
     const dragStart = useRef({ x: 0, y: 0, left: 0, top: 0 });
 
     if (!element) return null;
+
+    // --- PREVIEW MODE LOGIC ---
+    // 1. Hide Mobile Frame in Desktop Preview (Canvas type = Mobile Frame)
+    if (previewMode && element.type === 'canvas') return null;
+
     if (element.hidden && !previewMode) return <div className="hidden" />;
     if (element.hidden && previewMode) return null;
 
     const isSelected = selectedId === elementId && !previewMode;
     const isHovered = hoveredId === elementId && !isSelected && !previewMode && !dragData;
-    
+    const isContainer = ['container', 'page', 'section', 'canvas', 'webpage', 'app', 'grid'].includes(element.type);
+
     const parentId = Object.keys(elements).find(key => elements[key].children?.includes(elementId));
     const parent = parentId ? elements[parentId] : null;
+
+    // Layout Context
     const isParentCanvas = parent ? (parent.props.layoutMode === 'canvas') : false;
     const isArtboard = element.type === 'canvas' || element.type === 'webpage';
     const canMove = !element.locked && activeTool === 'select' && isParentCanvas && !isArtboard && !isMobileMirror;
 
-    // --- POINTER HANDLERS ---
+    // --- INTERACTION HANDLERS ---
     const handlePointerDown = (e: React.PointerEvent) => {
         if (previewMode) return;
         if (activeTool === 'select') e.preventDefault();
-
         if (!element.locked) e.stopPropagation();
-
         if (!element.locked) setSelectedId(elementId);
 
         if (activeTool === 'type' && ['text', 'button', 'heading'].includes(element.type)) {
@@ -58,13 +65,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
             const currentLeft = parseFloat(String(style.left || 0));
             const currentTop = parseFloat(String(style.top || 0));
 
-            dragStart.current = {
-                x: e.clientX,
-                y: e.clientY,
-                left: currentLeft,
-                top: currentTop
-            };
-
+            dragStart.current = { x: e.clientX, y: e.clientY, left: currentLeft, top: currentTop };
             setInteraction({ type: 'MOVE', itemId: elementId });
         }
     };
@@ -72,16 +73,13 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
     const handlePointerMove = (e: React.PointerEvent) => {
         if (interaction?.type === 'MOVE' && interaction.itemId === elementId) {
             e.stopPropagation();
-
-            // 1. Calculate Raw New Position
             const deltaX = (e.clientX - dragStart.current.x) / zoom;
             const deltaY = (e.clientY - dragStart.current.y) / zoom;
 
             let newLeft = dragStart.current.left + deltaX;
             let newTop = dragStart.current.top + deltaY;
 
-            // 2. BOUNDARY CLAMP (Collision Detection)
-            // Get dimensions of the Parent and the Element itself
+            // Boundary Clamp (Prevents dragging outside parent)
             const parentEl = nodeRef.current?.parentElement;
             if (parentEl && nodeRef.current) {
                 const pWidth = parentEl.offsetWidth;
@@ -89,28 +87,19 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                 const elWidth = nodeRef.current.offsetWidth;
                 const elHeight = nodeRef.current.offsetHeight;
 
-                // Clamp X: Cannot go below 0 or above (ParentWidth - ElementWidth)
-                const maxLeft = Math.max(0, pWidth - elWidth);
-                newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-
-                // Clamp Y: Cannot go below 0 or above (ParentHeight - ElementHeight)
-                const maxTop = Math.max(0, pHeight - elHeight);
-                newTop = Math.max(0, Math.min(newTop, maxTop));
+                if (pWidth > 0 && pHeight > 0) {
+                    newLeft = Math.max(0, Math.min(newLeft, pWidth - elWidth));
+                    newTop = Math.max(0, Math.min(newTop, pHeight - elHeight));
+                }
             }
 
             const newElements = { ...elements };
-            const newStyle = { ...newElements[elementId].props.style };
-
-            // Cleanup conflicting props
-            if ('right' in newStyle) delete newStyle.right;
-            if ('bottom' in newStyle) delete newStyle.bottom;
-
-            // Apply Clamped Position
-            newStyle.left = `${Math.round(newLeft)}px`;
-            newStyle.top = `${Math.round(newTop)}px`;
-            newStyle.position = 'absolute';
-
-            newElements[elementId].props.style = newStyle;
+            newElements[elementId].props.style = {
+                ...newElements[elementId].props.style,
+                left: `${Math.round(newLeft)}px`,
+                top: `${Math.round(newTop)}px`,
+                position: 'absolute'
+            };
             updateProject(newElements);
         }
     };
@@ -122,7 +111,6 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         }
     };
 
-    // --- DROP LOGIC ---
     const handleDrop = (e: React.DragEvent) => {
         e.stopPropagation(); e.preventDefault();
         if (!dragData || (!isArtboard && !element.props.layoutMode) || element.locked || previewMode) return;
@@ -148,7 +136,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                     top: `${Math.round(dropY - h / 2)}px`
                 };
 
-                // Auto-Expand if dropping at bottom (Long Scroll feature)
+                // Auto-Expand Artboard
                 if (isArtboard) {
                     const currentH = parseFloat(String(element.props.style?.height || rect.height / zoom));
                     const bottomEdge = (dropY - h / 2) + h + 100; // +100px buffer
@@ -173,21 +161,35 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         setDragData(null);
     };
 
-    // --- STYLE SANITIZATION ---
+    // --- STYLE PROCESSING (THE CRITICAL FIX) ---
     let finalStyle: React.CSSProperties = { ...element.props.style };
     let finalClass = element.props.className || '';
 
-    // RULE 1: Artboards are Hard Boundaries
+    // RULE 1: Artboards (Desktop Frame)
     if (isArtboard) {
         finalStyle.display = 'block';
-        finalStyle.position = 'absolute';
-        finalStyle.overflow = 'hidden'; // HARD BOUNDARY
-        finalStyle.backgroundColor = finalStyle.backgroundColor || '#f2f0ef';
+        finalStyle.overflow = 'hidden';
+        finalStyle.backgroundColor = finalStyle.backgroundColor || '#ffffff';
         finalClass = cn(finalClass, 'shadow-xl ring-1 ring-black/10');
+
+        // PREVIEW FIX: Center horizontally, remove absolute positioning
+        if (previewMode && element.type === 'webpage') {
+            finalStyle.position = 'relative';
+            finalStyle.left = 'auto';
+            finalStyle.top = 'auto';
+            finalStyle.transform = 'none';
+            finalStyle.margin = '0 auto'; // <--- CENTERS THE WEBSITE
+            finalStyle.minHeight = '100vh';
+            finalClass = cn(finalClass, '!shadow-none !ring-0');
+        } else {
+            // EDITOR MODE: Must be absolute to move around
+            finalStyle.position = 'absolute';
+        }
     }
 
-    // RULE 2: Children of Canvas/Artboard are Absolute
-    if (isParentCanvas && !isMobileMirror) {
+    // RULE 2: Children (Items inside Artboards)
+    // FIX: Added !isArtboard to stop this block from resetting the Frame's position
+    if (isParentCanvas && !isMobileMirror && !isArtboard) {
         finalStyle.position = 'absolute';
         finalStyle.left = finalStyle.left || '0px';
         finalStyle.top = finalStyle.top || '0px';
@@ -198,24 +200,44 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         finalStyle = { ...finalStyle, position: 'relative', left: 'auto', top: 'auto', width: '100%', height: 'auto' };
     }
 
-    // Render Children
-    const renderChildren = () => (
-        <>
-            {element.children?.map(childId => (
-                <RenderNode key={isMobileMirror ? `${childId}-mobile` : childId} elementId={childId} isMobileMirror={isMobileMirror} />
-            ))}
-        </>
-    );
-
-    // Content Switching
+    // --- CONTENT RENDER ---
     let content = null;
     if (element.type === 'geometric_bg') content = <GeometricShapesBackground />;
     else if (element.type === 'feature_hover') content = <FeaturesSectionWithHoverEffects {...(element.props as any)} />;
     else if (element.type === 'hero_geometric') content = <HeroGeometric {...(element.props as any)} />;
-    else if (element.type === 'hero_modern') content = renderChildren();
+    else if (element.type === 'hero_modern') {
+        content = (
+            <>
+                {element.children?.map(childId => (
+                    <RenderNode key={isMobileMirror ? `${childId}-mobile` : childId} elementId={childId} isMobileMirror={isMobileMirror} />
+                ))}
+            </>
+        );
+    }
     else if (element.type === 'text' || element.type === 'button' || element.type === 'heading') content = element.content;
     else if (element.type === 'image') content = <img className="w-full h-full object-cover pointer-events-none" src={element.src} alt="" />;
-    else content = renderChildren();
+    else {
+        content = (
+            <>
+                {(element.type === 'canvas' || element.type === 'webpage') && !previewMode && !isMobileMirror && (
+                    <div className="absolute top-0 left-0 bg-white text-slate-500 text-[10px] px-2 py-0.5 rounded-br border-b border-r border-slate-200 pointer-events-none z-10 font-medium">
+                        {element.name}
+                    </div>
+                )}
+                {element.children?.map(childId => (
+                    <RenderNode key={isMobileMirror ? `${childId}-mobile` : childId} elementId={childId} isMobileMirror={isMobileMirror} />
+                ))}
+                {isContainer && !isArtboard && !element.children?.length && !previewMode && !element.props['data-custom-code'] && (
+                    <div
+                        onClick={(e) => { e.stopPropagation(); setSelectedId(elementId); setActivePanel('add'); }}
+                        className="w-full h-full min-h-[60px] flex items-center justify-center gap-2 border-2 border-dashed border-slate-300/50 rounded hover:border-blue-500/50 hover:bg-blue-500/5 transition-all cursor-pointer group"
+                    >
+                        <Plus size={16} className="text-neutral-400 group-hover:text-blue-500" />
+                    </div>
+                )}
+            </>
+        );
+    }
 
     return (
         <div
@@ -234,24 +256,16 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                 'box-border',
                 isSelected && !isMobileMirror && !isEditing && 'outline outline-2 outline-blue-500 z-50',
                 isHovered && !isSelected && !isMobileMirror && 'outline outline-2 outline-blue-500 z-40',
-                canMove ? 'cursor-move' : ''
+                canMove ? 'cursor-move' : '',
+                isArtboard ? 'bg-white' : ''
             )}
             style={finalStyle}
-            onPointerOver={(e) => { if (previewMode) return; e.stopPropagation(); setHoveredId(elementId); }}
+            onPointerOver={(e) => { if (previewMode || dragData) return; e.stopPropagation(); setHoveredId(elementId); }}
             onPointerOut={() => { if (!previewMode) setHoveredId(null); }}
         >
-            {/* RESIZER for Artboards (Long Scroll) & Selected Items */}
-            {isSelected && !isMobileMirror && !isEditing && !element.locked && (isParentCanvas || isArtboard) && (
+            {isSelected && !isMobileMirror && !isEditing && !element.locked && (isParentCanvas || isArtboard) && !previewMode && (
                 <Resizer elementId={elementId} />
             )}
-
-            {/* ARTBOARD LABEL */}
-            {isArtboard && !previewMode && !isMobileMirror && (
-                <div className="absolute -top-6 left-0 text-xs font-bold text-slate-400 uppercase tracking-wider select-none">
-                    {element.name} ({parseInt(String(finalStyle.width))} x {parseInt(String(finalStyle.height))})
-                </div>
-            )}
-
             {content}
         </div>
     );

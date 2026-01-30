@@ -16,123 +16,84 @@ export const Canvas = () => {
     const canvasRef = useRef<HTMLDivElement>(null);
     const [spacePressed, setSpacePressed] = useState(false);
 
-    // --- 1. PAN & ZOOM CONTROLS ---
+    // --- 1. EDITOR CONTROLS ---
     useEffect(() => {
         const onWheel = (e: WheelEvent) => {
             if (previewMode) return;
             e.preventDefault();
-
             if (e.ctrlKey || e.metaKey) {
-                // ZOOM: Pinch or Ctrl+Wheel
                 const delta = -e.deltaY;
-                const factor = 0.002;
-                const newZoom = Math.min(Math.max(zoom + delta * factor, 0.1), 3);
+                const newZoom = Math.min(Math.max(zoom + delta * 0.002, 0.1), 3);
                 setZoom(newZoom);
             } else {
-                // PAN: Regular Wheel
                 setPan(prev => ({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
             }
         };
-
-        const canvasEl = canvasRef.current;
-        if (canvasEl) canvasEl.addEventListener('wheel', onWheel, { passive: false });
-        return () => canvasEl?.removeEventListener('wheel', onWheel);
+        const el = canvasRef.current;
+        if (el) el.addEventListener('wheel', onWheel, { passive: false });
+        return () => el?.removeEventListener('wheel', onWheel);
     }, [zoom, previewMode, setZoom, setPan]);
 
-    // --- 2. KEYBOARD CONTROLS (Space to Pan) ---
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
-            if (e.code === 'Space' && !e.repeat && !previewMode) {
-                setSpacePressed(true);
-                setIsPanning(true);
-            }
+            if (e.code === 'Space' && !e.repeat && !previewMode) { setSpacePressed(true); setIsPanning(true); }
         };
         const onKeyUp = (e: KeyboardEvent) => {
-            if (e.code === 'Space') {
-                setSpacePressed(false);
-                setIsPanning(false);
-            }
+            if (e.code === 'Space') { setSpacePressed(false); setIsPanning(false); }
         };
         window.addEventListener('keydown', onKeyDown);
         window.addEventListener('keyup', onKeyUp);
-        return () => {
-            window.removeEventListener('keydown', onKeyDown);
-            window.removeEventListener('keyup', onKeyUp);
-        };
+        return () => { window.removeEventListener('keydown', onKeyDown); window.removeEventListener('keyup', onKeyUp); };
     }, [previewMode, setIsPanning]);
 
-    // --- 3. GLOBAL POINTER MOVEMENT ---
     useEffect(() => {
-        const onPointerMove = (e: PointerEvent) => {
-            if (isPanning) {
-                setPan(prev => ({ x: prev.x + e.movementX, y: prev.y + e.movementY }));
-            }
-            if (interaction) {
-                handleInteractionMove(e);
-            }
+        const onMove = (e: PointerEvent) => {
+            if (isPanning && !previewMode) setPan(p => ({ x: p.x + e.movementX, y: p.y + e.movementY }));
+            if (interaction) handleInteractionMove(e);
         };
+        const onUp = () => { if (interaction) setInteraction(null); if (!spacePressed) setIsPanning(false); };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+    }, [isPanning, interaction, handleInteractionMove, setPan, setInteraction, spacePressed, previewMode]);
 
-        const onPointerUp = () => {
-            if (interaction) setInteraction(null);
-            if (!spacePressed) setIsPanning(false);
-        };
-
-        window.addEventListener('pointermove', onPointerMove);
-        window.addEventListener('pointerup', onPointerUp);
-        return () => {
-            window.removeEventListener('pointermove', onPointerMove);
-            window.removeEventListener('pointerup', onPointerUp);
-        };
-    }, [isPanning, interaction, handleInteractionMove, setPan, setInteraction, spacePressed, setIsPanning]);
-
-    // --- 4. DROP LOGIC (World Coordinates) ---
-    const handleDrop = (e: React.DragEvent) => {
+    // --- 2. DROP LOGIC ---
+    const handleGlobalDrop = (e: React.DragEvent) => {
         e.preventDefault();
         if (!dragData || previewMode) return;
 
-        // Calculate Mouse Position in "World Space"
-        // (Screen - PanOffset) / ZoomScale
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return;
+        const worldX = (e.clientX - rect.left - pan.x) / zoom;
+        const worldY = (e.clientY - rect.top - pan.y) / zoom;
 
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const worldX = (mouseX - pan.x) / zoom;
-        const worldY = (mouseY - pan.y) / zoom;
-
-        // Instantiate
         let newNodes: Record<string, any> = {};
-        let rootId = '';
+        let newRootId = '';
         let w = 0, h = 0;
 
         if (dragData.type === 'TEMPLATE') {
             const tpl = TEMPLATES[dragData.payload];
             if (!tpl) return;
             const res = instantiateTemplate(tpl.rootId, tpl.nodes);
-            newNodes = res.newNodes;
-            rootId = res.rootId;
-            w = parseFloat(String(newNodes[rootId].props.style?.width || '0'));
-            h = parseFloat(String(newNodes[rootId].props.style?.height || '0'));
+            newNodes = res.newNodes; newRootId = res.rootId;
+            w = parseFloat(String(newNodes[newRootId].props.style?.width || 0));
+            h = parseFloat(String(newNodes[newRootId].props.style?.height || 0));
         } else if (dragData.type === 'NEW') {
             const conf = COMPONENT_TYPES[dragData.payload];
             if (!conf) return;
-            rootId = `el-${Date.now()}`;
-            // Defaults
-            w = dragData.payload === 'webpage' ? 1200 : dragData.payload === 'button' ? 120 : 200;
-            h = dragData.payload === 'webpage' ? 800 : dragData.payload === 'button' ? 40 : 200;
-
-            newNodes[rootId] = {
-                id: rootId, type: dragData.payload, name: conf.label,
-                children: [], props: { ...conf.defaultProps, style: { ...conf.defaultProps?.style, width: `${w}px`, height: `${h}px` } },
+            newRootId = `el-${Date.now()}`;
+            w = dragData.payload === 'webpage' ? 1200 : 200;
+            h = dragData.payload === 'webpage' ? 800 : 100;
+            newNodes[newRootId] = {
+                id: newRootId, type: dragData.payload, name: conf.label, children: [],
+                props: { ...conf.defaultProps, style: { ...conf.defaultProps?.style, width: `${w}px`, height: `${h}px` } },
                 content: conf.defaultContent, src: conf.src
             };
         }
 
-        // Center on Mouse
-        if (newNodes[rootId]) {
-            newNodes[rootId].props.style = {
-                ...newNodes[rootId].props.style,
+        if (newNodes[newRootId]) {
+            newNodes[newRootId].props.style = {
+                ...newNodes[newRootId].props.style,
                 position: 'absolute',
                 left: `${Math.round(worldX - w / 2)}px`,
                 top: `${Math.round(worldY - h / 2)}px`
@@ -140,46 +101,48 @@ export const Canvas = () => {
         }
 
         const newProject = { ...elements, ...newNodes };
-        // Add to active page
-        if (newProject[activePageId]) {
-            newProject[activePageId].children = [...(newProject[activePageId].children || []), rootId];
-        }
+        if (newProject[activePageId]) newProject[activePageId].children = [...(newProject[activePageId].children || []), newRootId];
         updateProject(newProject);
         setDragData(null);
-        setSelectedId(rootId);
+        setSelectedId(newRootId);
     };
 
+    // --- 3. PREVIEW MODE RENDER (Real Website Look) ---
+    if (previewMode) {
+        return (
+            <div className="flex-1 bg-white overflow-y-auto h-full w-full">
+                <div className="min-h-screen w-full flex justify-center bg-white py-10">
+                    <RenderNode elementId={activePageId} />
+                </div>
+            </div>
+        );
+    }
+
+    // --- 4. EDITOR MODE RENDER ---
     return (
         <div
             ref={canvasRef}
-            className="flex-1 bg-[#1e1e1e] relative overflow-hidden cursor-default flex items-center justify-center"
+            className="flex-1 bg-[#1e1e1e] relative overflow-hidden cursor-default select-none"
             style={{ cursor: isPanning || spacePressed ? 'grab' : 'default' }}
             onMouseDown={() => setSelectedId(null)}
-            onDrop={handleDrop}
+            onDrop={handleGlobalDrop}
             onDragOver={(e) => e.preventDefault()}
         >
-            {/* THE WORLD LAYER (Transforms with Pan/Zoom) */}
             <div
                 style={{
                     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                    transformOrigin: 'center center',
-                    width: '100%', height: '100%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    transformOrigin: '0 0',
+                    width: '100%', height: '100%'
                 }}
             >
-                {/* Render the Active Page (which contains Frames) */}
                 <RenderNode elementId={activePageId} />
-
-                {/* Guides Overlay */}
-                {!previewMode && guides.map((g, i) => (
-                    <div key={i} className="absolute bg-red-500 z-[9999]"
-                        style={{
-                            left: g.orientation === 'vertical' ? g.pos : g.start,
-                            top: g.orientation === 'vertical' ? g.start : g.pos,
-                            width: g.orientation === 'vertical' ? '1px' : (g.end - g.start),
-                            height: g.orientation === 'vertical' ? (g.end - g.start) : '1px'
-                        }}
-                    />
+                {guides.map((g, i) => (
+                    <div key={i} className="absolute bg-red-500 z-[9999]" style={{
+                        left: g.orientation === 'vertical' ? g.pos : g.start,
+                        top: g.orientation === 'vertical' ? g.start : g.pos,
+                        width: g.orientation === 'vertical' ? '1px' : (g.end - g.start),
+                        height: g.orientation === 'vertical' ? (g.end - g.start) : '1px'
+                    }} />
                 ))}
             </div>
         </div>
