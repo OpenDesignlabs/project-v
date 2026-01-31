@@ -1,7 +1,7 @@
 import {
     Type, Square, Box, Layout, Grid, Image as ImageIcon, Video,
     FormInput, CheckSquare, List, Link, Frame, Columns, AlignCenter, CreditCard, Globe, Monitor,
-    Sparkles, Zap, ListOrdered, Table as TableIcon, GalleryHorizontal, User
+    Sparkles, Zap, ListOrdered, Table as TableIcon, GalleryHorizontal
 } from 'lucide-react';
 import type { ComponentConfig, VectraProject } from '../types';
 

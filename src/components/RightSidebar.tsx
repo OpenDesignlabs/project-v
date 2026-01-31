@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { Section, Row, NumberInput, ColorInput, ToggleGroup, BoxModel, TextInput, SelectInput } from './ui/PremiumInputs';
 import {
-    AlignLeft, AlignCenter, AlignRight, AlignJustify,
-    Grid, Box, Maximize, Lock, Unlock, Eye, EyeOff,
-    Type, ArrowRight, ArrowDown, Play, Image as ImageIcon, PaintBucket, RotateCw, Layers, MousePointer2
+    AlignLeft, AlignCenter, AlignRight,
+    Grid, Box, Maximize, Lock, Eye,
+    Type, ArrowRight, ArrowDown, Image as ImageIcon, PaintBucket, RotateCw, Layers, MousePointer2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -83,7 +83,7 @@ export const RightSidebar = () => {
     };
 
     const style = element.props.style || {};
-    const getVal = (val: any, fallback = 0) => parseInt(String(val || fallback).replace('px', ''));
+    const getVal = (val: any, fallback: any = 0) => parseInt(String(val || fallback).replace('px', ''));
     const handleBoxModelChange = (field: string, value: string) => updateStyle(field, parseInt(value) || 0);
 
     return (
@@ -111,13 +111,13 @@ export const RightSidebar = () => {
             {/* LAYOUT */}
             <Section title="Layout">
                 <div className="grid grid-cols-2 gap-2 mb-2">
-                    <NumberInput label="W" value={getVal(style.width, 'auto')} onChange={(v: number) => updateStyle('width', v)} />
-                    <NumberInput label="H" value={getVal(style.height, 'auto')} onChange={(v: number) => updateStyle('height', v)} />
+                    <NumberInput label="W" value={getVal(style.width, 'auto')} onChange={(v: any) => updateStyle('width', v)} />
+                    <NumberInput label="H" value={getVal(style.height, 'auto')} onChange={(v: any) => updateStyle('height', v)} />
                 </div>
                 {element.props.style?.position === 'absolute' && (
                     <div className="grid grid-cols-2 gap-2 mb-2">
-                        <NumberInput label="X" value={getVal(style.left)} onChange={(v: number) => updateStyle('left', v)} />
-                        <NumberInput label="Y" value={getVal(style.top)} onChange={(v: number) => updateStyle('top', v)} />
+                        <NumberInput label="X" value={getVal(style.left)} onChange={(v: any) => updateStyle('left', v)} />
+                        <NumberInput label="Y" value={getVal(style.top)} onChange={(v: any) => updateStyle('top', v)} />
                     </div>
                 )}
                 <div className="h-px bg-[#2a2a2c] my-3" />
