@@ -1,5 +1,5 @@
 import type { VectraProject } from '../types';
-import { Navigation, Sparkles, Megaphone, MessageSquare, Layout, type LucideIcon } from 'lucide-react';
+import { Navigation, Sparkles, Megaphone, MessageSquare, Layout, CreditCard, GalleryHorizontal, ListOrdered, User, type LucideIcon } from 'lucide-react';
 
 interface TemplateConfig {
     rootId: string;
@@ -11,7 +11,7 @@ interface TemplateConfig {
 
 export const TEMPLATES: Record<string, TemplateConfig> = {
 
-    // --- 1. MODERN HERO (Replaces Geometric Hero) ---
+    // --- 1. MODERN HERO ---
     hero_modern: {
         name: 'Modern Hero',
         category: 'Sections',
@@ -44,7 +44,69 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
         }
     },
 
-    // --- 2. ANNOUNCEMENT BAR ---
+    // --- 2. FEATURE CARD ---
+    feature_card: {
+        name: 'Feature Card',
+        category: 'Cards',
+        icon: CreditCard,
+        rootId: 'root',
+        nodes: {
+            'root': {
+                id: 'root', type: 'card', name: 'Feature Card', children: ['icon', 'title', 'desc'],
+                props: { className: 'bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col gap-3', layoutMode: 'canvas', style: { width: '300px', height: '200px', position: 'absolute' } }
+            },
+            'icon': { id: 'icon', type: 'button', name: 'Icon Wrapper', content: '★', props: { className: 'w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-bold', style: { position: 'absolute', left: '24px', top: '24px', width: '40px', height: '40px' } } },
+            'title': { id: 'title', type: 'text', name: 'Title', content: 'Smart Feature', props: { className: 'text-lg font-bold text-slate-900', style: { position: 'absolute', left: '24px', top: '80px', width: '200px', height: '24px' } } },
+            'desc': { id: 'desc', type: 'text', name: 'Description', content: 'This is a fully composed card template made of basic blocks.', props: { className: 'text-sm text-slate-500 leading-relaxed', style: { position: 'absolute', left: '24px', top: '110px', width: '250px', height: '60px' } } }
+        }
+    },
+
+    // --- 3. ACCORDION TEMPLATE ---
+    accordion_section: {
+        name: 'FAQ Accordion',
+        category: 'Sections',
+        icon: ListOrdered,
+        rootId: 'root',
+        nodes: {
+            'root': {
+                id: 'root', type: 'accordion', name: 'FAQ Accordion', children: [],
+                props: { className: 'w-[500px]', layoutMode: 'canvas', style: { position: 'absolute', width: '500px', height: 'auto' } }
+            }
+        }
+    },
+
+    // --- 4. CAROUSEL TEMPLATE ---
+    carousel_widget: {
+        name: 'Image Carousel',
+        category: 'Media',
+        icon: GalleryHorizontal,
+        rootId: 'root',
+        nodes: {
+            'root': {
+                id: 'root', type: 'carousel', name: 'Carousel', children: [],
+                props: { className: 'w-[600px] h-[350px] shadow-xl', layoutMode: 'canvas', style: { position: 'absolute', width: '600px', height: '350px' } }
+            }
+        }
+    },
+
+    // --- 5. PROFILE CARD ---
+    profile_card: {
+        name: 'Profile Card',
+        category: 'Cards',
+        icon: User,
+        rootId: 'root',
+        nodes: {
+            'root': {
+                id: 'root', type: 'container', name: 'Profile', children: ['img', 'name', 'role'],
+                props: { className: 'bg-white p-4 rounded-2xl shadow border border-slate-100 flex items-center gap-4', layoutMode: 'canvas', style: { width: '320px', height: '100px', position: 'absolute' } }
+            },
+            'img': { id: 'img', type: 'image', name: 'Avatar', src: 'https://i.pravatar.cc/150?u=a042581f4e29026024d', props: { className: 'w-16 h-16 rounded-full object-cover', style: { position: 'absolute', left: '20px', top: '18px', width: '64px', height: '64px' } } },
+            'name': { id: 'name', type: 'text', name: 'Name', content: 'Alex Rivera', props: { className: 'text-base font-bold text-slate-900', style: { position: 'absolute', left: '100px', top: '28px', width: '150px', height: '20px' } } },
+            'role': { id: 'role', type: 'text', name: 'Role', content: 'Product Designer', props: { className: 'text-xs font-medium text-slate-500', style: { position: 'absolute', left: '100px', top: '50px', width: '150px', height: '16px' } } }
+        }
+    },
+
+    // --- 6. ANNOUNCEMENT BAR ---
     announcement: {
         name: 'Announcement Bar',
         category: 'Navigation',
@@ -60,7 +122,7 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
         }
     },
 
-    // --- 3. NAVBAR ---
+    // --- 7. NAVBAR ---
     navbar: {
         name: 'SaaS Navbar',
         category: 'Navigation',
@@ -79,7 +141,7 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
         }
     },
 
-    // --- 4. TESTIMONIAL ---
+    // --- 8. TESTIMONIAL ---
     testimonial: {
         name: 'Testimonial',
         category: 'Cards',
@@ -97,7 +159,7 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
         }
     },
 
-    // --- 5. FOOTER ---
+    // --- 9. FOOTER ---
     footer: {
         name: 'Simple Footer',
         category: 'Sections',

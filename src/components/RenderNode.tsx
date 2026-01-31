@@ -1,13 +1,18 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect, Suspense, lazy } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { TEMPLATES } from '../data/templates';
 import { instantiateTemplate } from '../utils/templateUtils';
 import { Resizer } from './Resizer';
 import { cn } from '../lib/utils';
-import { GeometricShapesBackground } from './marketplace/GeometricShapes';
-import { FeaturesSectionWithHoverEffects } from './marketplace/FeatureHover';
-import { HeroGeometric } from './marketplace/HeroGeometric';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
+
+// --- LAZY LOAD MARKETPLACE COMPONENTS ---
+const GeometricShapesBackground = lazy(() => import('./marketplace/GeometricShapes').then(m => ({ default: m.GeometricShapesBackground })));
+const FeaturesSectionWithHoverEffects = lazy(() => import('./marketplace/FeatureHover').then(m => ({ default: m.FeaturesSectionWithHoverEffects })));
+const HeroGeometric = lazy(() => import('./marketplace/HeroGeometric').then(m => ({ default: m.HeroGeometric })));
+
+// --- SMART COMPONENTS (Direct Import for Stability) ---
+import { SmartAccordion, SmartCarousel, SmartTable } from './smart/SmartComponents';
 
 interface RenderNodeProps { elementId: string; isMobileMirror?: boolean; }
 
@@ -22,31 +27,44 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
     const nodeRef = useRef<HTMLDivElement>(null);
     const [isEditing, setIsEditing] = useState(false);
 
-    // Physics State
+    // Animation State
+    const [isPlaying, setIsPlaying] = useState(false);
+    const styleAny = element?.props?.style as Record<string, unknown> | undefined;
+    const prevAnimName = useRef(element?.props?.style?.animationName);
+    const prevTrigger = useRef(styleAny?.['--anim-trigger']);
+
+    useEffect(() => {
+        if (previewMode) return;
+        const currentName = element?.props?.style?.animationName;
+        const currentTrigger = styleAny?.['--anim-trigger'];
+
+        if (currentName !== prevAnimName.current || currentTrigger !== prevTrigger.current) {
+            prevAnimName.current = currentName;
+            prevTrigger.current = currentTrigger;
+            setIsPlaying(true);
+            const timer = setTimeout(() => setIsPlaying(false), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [element?.props?.style?.animationName, styleAny?.['--anim-trigger'], previewMode]);
+
     const dragStart = useRef({ x: 0, y: 0, left: 0, top: 0 });
 
     if (!element) return null;
 
-    // --- PREVIEW MODE LOGIC ---
-    // 1. Hide Mobile Frame in Desktop Preview (Canvas type = Mobile Frame)
     if (previewMode && element.type === 'canvas') return null;
-
     if (element.hidden && !previewMode) return <div className="hidden" />;
     if (element.hidden && previewMode) return null;
 
     const isSelected = selectedId === elementId && !previewMode;
     const isHovered = hoveredId === elementId && !isSelected && !previewMode && !dragData;
-    const isContainer = ['container', 'page', 'section', 'canvas', 'webpage', 'app', 'grid'].includes(element.type);
+    const isContainer = ['container', 'page', 'section', 'canvas', 'webpage', 'app', 'grid', 'card', 'stack_v', 'stack_h'].includes(element.type);
 
     const parentId = Object.keys(elements).find(key => elements[key].children?.includes(elementId));
     const parent = parentId ? elements[parentId] : null;
-
-    // Layout Context
     const isParentCanvas = parent ? (parent.props.layoutMode === 'canvas') : false;
     const isArtboard = element.type === 'canvas' || element.type === 'webpage';
     const canMove = !element.locked && activeTool === 'select' && isParentCanvas && !isArtboard && !isMobileMirror;
 
-    // --- INTERACTION HANDLERS ---
     const handlePointerDown = (e: React.PointerEvent) => {
         if (previewMode) return;
         if (activeTool === 'select') e.preventDefault();
@@ -60,11 +78,9 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         if (canMove && nodeRef.current) {
             e.currentTarget.setPointerCapture(e.pointerId);
             e.stopPropagation();
-
             const style = element.props.style || {};
             const currentLeft = parseFloat(String(style.left || 0));
             const currentTop = parseFloat(String(style.top || 0));
-
             dragStart.current = { x: e.clientX, y: e.clientY, left: currentLeft, top: currentTop };
             setInteraction({ type: 'MOVE', itemId: elementId });
         }
@@ -75,18 +91,15 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
             e.stopPropagation();
             const deltaX = (e.clientX - dragStart.current.x) / zoom;
             const deltaY = (e.clientY - dragStart.current.y) / zoom;
-
             let newLeft = dragStart.current.left + deltaX;
             let newTop = dragStart.current.top + deltaY;
 
-            // Boundary Clamp (Prevents dragging outside parent)
             const parentEl = nodeRef.current?.parentElement;
             if (parentEl && nodeRef.current) {
                 const pWidth = parentEl.offsetWidth;
                 const pHeight = parentEl.offsetHeight;
                 const elWidth = nodeRef.current.offsetWidth;
                 const elHeight = nodeRef.current.offsetHeight;
-
                 if (pWidth > 0 && pHeight > 0) {
                     newLeft = Math.max(0, Math.min(newLeft, pWidth - elWidth));
                     newTop = Math.max(0, Math.min(newTop, pHeight - elHeight));
@@ -125,7 +138,6 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
             const tpl = TEMPLATES[dragData.payload];
             if (tpl) {
                 const { newNodes, rootId } = instantiateTemplate(tpl.rootId, tpl.nodes);
-
                 const w = parseFloat(String(newNodes[rootId].props.style?.width || 0));
                 const h = parseFloat(String(newNodes[rootId].props.style?.height || 0));
 
@@ -136,14 +148,12 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                     top: `${Math.round(dropY - h / 2)}px`
                 };
 
-                // Auto-Expand Artboard
                 if (isArtboard) {
                     const currentH = parseFloat(String(element.props.style?.height || rect.height / zoom));
-                    const bottomEdge = (dropY - h / 2) + h + 100; // +100px buffer
+                    const bottomEdge = (dropY - h / 2) + h + 50;
                     if (bottomEdge > currentH) {
                         const newElements = { ...elements, ...newNodes };
-                        if (!newElements[elementId].props.style) newElements[elementId].props.style = {};
-                        newElements[elementId].props.style.height = `${bottomEdge}px`;
+                        newElements[elementId].props.style = { ...newElements[elementId].props.style, height: `${bottomEdge}px` };
                         newElements[elementId].children = [...(newElements[elementId].children || []), rootId];
                         updateProject(newElements);
                         setSelectedId(rootId);
@@ -161,61 +171,73 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         setDragData(null);
     };
 
-    // --- STYLE PROCESSING (THE CRITICAL FIX) ---
     let finalStyle: React.CSSProperties = { ...element.props.style };
     let finalClass = element.props.className || '';
 
-    // RULE 1: Artboards (Desktop Frame)
+    const transformParts = [];
+    if (finalStyle.rotate) transformParts.push(`rotate(${finalStyle.rotate})`);
+    if (finalStyle.scale) transformParts.push(`scale(${finalStyle.scale})`);
+    if (transformParts.length > 0) finalStyle.transform = transformParts.join(' ');
+
+    if (!interaction) {
+        finalStyle.transition = 'background-color 0.2s, color 0.2s, opacity 0.2s, transform 0.2s, border-radius 0.2s, border-width 0.2s';
+    } else {
+        finalStyle.transition = 'none';
+    }
+
+    if (!previewMode && !isPlaying) {
+        delete finalStyle.animationName;
+    } else if (finalStyle.animationName && finalStyle.animationName !== 'none') {
+        finalStyle.animationFillMode = 'both';
+    }
+
     if (isArtboard) {
         finalStyle.display = 'block';
         finalStyle.overflow = 'hidden';
-        finalStyle.backgroundColor = finalStyle.backgroundColor || '#ffffff';
+        const hasBg = finalStyle.backgroundColor || finalStyle.backgroundImage;
+        if (!hasBg) finalStyle.backgroundColor = '#ffffff';
         finalClass = cn(finalClass, 'shadow-xl ring-1 ring-black/10');
 
-        // PREVIEW FIX: Center horizontally, remove absolute positioning
         if (previewMode && element.type === 'webpage') {
-            finalStyle.position = 'relative';
-            finalStyle.left = 'auto';
-            finalStyle.top = 'auto';
-            finalStyle.transform = 'none';
-            finalStyle.margin = '0 auto'; // <--- CENTERS THE WEBSITE
-            finalStyle.minHeight = '100vh';
-            finalClass = cn(finalClass, '!shadow-none !ring-0');
+            finalStyle.position = 'relative'; finalStyle.left = 'auto'; finalStyle.top = 'auto'; finalStyle.transform = 'none';
+            finalStyle.margin = '0 auto'; finalStyle.minHeight = '100vh';
+            finalClass = cn(finalClass, '!shadow-none !border-none');
         } else {
-            // EDITOR MODE: Must be absolute to move around
             finalStyle.position = 'absolute';
         }
     }
 
-    // RULE 2: Children (Items inside Artboards)
-    // FIX: Added !isArtboard to stop this block from resetting the Frame's position
     if (isParentCanvas && !isMobileMirror && !isArtboard) {
-        finalStyle.position = 'absolute';
-        finalStyle.left = finalStyle.left || '0px';
-        finalStyle.top = finalStyle.top || '0px';
+        finalStyle.position = 'absolute'; finalStyle.left = finalStyle.left || '0px'; finalStyle.top = finalStyle.top || '0px';
         finalClass = finalClass.replace(/relative|fixed|sticky/g, '');
     }
 
     if (isMobileMirror) {
-        finalStyle = { ...finalStyle, position: 'relative', left: 'auto', top: 'auto', width: '100%', height: 'auto' };
+        finalStyle = { ...finalStyle, position: 'relative', left: 'auto', top: 'auto', width: '100%', height: 'auto', transform: 'none' };
     }
 
-    // --- CONTENT RENDER ---
+    // --- RENDER CONTENT ---
     let content = null;
-    if (element.type === 'geometric_bg') content = <GeometricShapesBackground />;
-    else if (element.type === 'feature_hover') content = <FeaturesSectionWithHoverEffects {...(element.props as any)} />;
-    else if (element.type === 'hero_geometric') content = <HeroGeometric {...(element.props as any)} />;
+    const LoadingPlaceholder = () => <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-400"><Loader2 className="animate-spin" size={24} /></div>;
+
+    // 1. SMART COMPONENTS (Jitter-Free)
+    if (element.type === 'accordion') content = <SmartAccordion {...element.props} />;
+    else if (element.type === 'carousel') content = <SmartCarousel {...element.props} />;
+    else if (element.type === 'table') content = <SmartTable {...element.props} />;
+
+    // 2. MARKETPLACE (Lazy Loaded)
+    else if (element.type === 'geometric_bg') content = <Suspense fallback={<LoadingPlaceholder />}><GeometricShapesBackground /></Suspense>;
+    else if (element.type === 'feature_hover') content = <Suspense fallback={<LoadingPlaceholder />}><FeaturesSectionWithHoverEffects {...(element.props as any)} /></Suspense>;
+    else if (element.type === 'hero_geometric') content = <Suspense fallback={<LoadingPlaceholder />}><HeroGeometric {...(element.props as any)} /></Suspense>;
+
+    // 3. PRIMITIVES
     else if (element.type === 'hero_modern') {
-        content = (
-            <>
-                {element.children?.map(childId => (
-                    <RenderNode key={isMobileMirror ? `${childId}-mobile` : childId} elementId={childId} isMobileMirror={isMobileMirror} />
-                ))}
-            </>
-        );
+        content = <>{element.children?.map(childId => <RenderNode key={isMobileMirror ? `${childId}-mobile` : childId} elementId={childId} isMobileMirror={isMobileMirror} />)}</>;
     }
     else if (element.type === 'text' || element.type === 'button' || element.type === 'heading') content = element.content;
     else if (element.type === 'image') content = <img className="w-full h-full object-cover pointer-events-none" src={element.src} alt="" />;
+
+    // 4. CONTAINERS (Card, Stack, Grid, etc.)
     else {
         content = (
             <>

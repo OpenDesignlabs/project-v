@@ -1,334 +1,257 @@
 import { useState } from 'react';
 import { useEditor } from '../context/EditorContext';
-import { Switch, DraggableLabel, ColorPicker } from './ui/PremiumInputs';
+import { Section, Row, NumberInput, ColorInput, ToggleGroup, BoxModel, TextInput, SelectInput } from './ui/PremiumInputs';
 import {
-    Layout, Type, Palette, MousePointer2, Zap,
-    Link as LinkIcon, Hash, Lock, Unlock, Eye, EyeOff,
     AlignLeft, AlignCenter, AlignRight, AlignJustify,
-    Box, Maximize, Trash2, Globe
+    Grid, Box, Maximize, Lock, Unlock, Eye, EyeOff,
+    Type, ArrowRight, ArrowDown, Play, Image as ImageIcon, PaintBucket, RotateCw, Layers, MousePointer2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-// --- TABS COMPONENT (Dark Mode) ---
-const Tabs = ({ active, onChange }: { active: string, onChange: (v: string) => void }) => (
-    <div className="flex p-1 mx-4 mt-4 bg-[#252526] rounded-md border border-[#3e3e42]">
-        <button
-            onClick={() => onChange('design')}
-            className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-1.5 text-[11px] font-semibold rounded-sm transition-all relative",
-                active === 'design'
-                    ? "text-white after:absolute after:bottom-[-4px] after:w-full after:h-[2px] after:bg-[#007acc]"
-                    : "text-[#858585] hover:text-white"
-            )}
-        >
-            <Palette size={14} /> Design
-        </button>
-        <button
-            onClick={() => onChange('interact')}
-            className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-1.5 text-[11px] font-semibold rounded-sm transition-all relative",
-                active === 'interact'
-                    ? "text-[#4fc1ff] after:absolute after:bottom-[-4px] after:w-full after:h-[2px] after:bg-[#007acc]"
-                    : "text-[#858585] hover:text-white"
-            )}
-        >
-            <Zap size={14} /> Prototype
-        </button>
-    </div>
-);
-
-// --- REUSABLE HELPERS (Dark Mode) ---
-const Section = ({ title, icon: Icon, children, defaultOpen = true }: any) => {
-    const [isOpen, setIsOpen] = useState(defaultOpen);
-    return (
-        <div className="border-b border-[#252526] last:border-0">
-            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex items-center justify-between p-3 hover:bg-[#3e3e42] transition-colors group">
-                <div className="flex items-center gap-2 text-[11px] font-bold text-[#cccccc] uppercase tracking-wide">
-                    <Icon size={14} className="text-[#858585] group-hover:text-white" /> {title}
-                </div>
-            </button>
-            {isOpen && <div className="px-3 pb-4 space-y-3">{children}</div>}
-        </div>
-    );
-};
-
-const Row = ({ label, children }: any) => (
-    <div className="flex items-center justify-between gap-3">
-        <label className="text-[10px] font-medium text-[#999999] w-16 shrink-0 truncate">{label}</label>
-        <div className="flex-1 flex items-center justify-end gap-2">{children}</div>
-    </div>
-);
-
-// --- MAIN COMPONENT ---
 export const RightSidebar = () => {
-    const { elements, selectedId, updateProject } = useEditor();
-    const [activeTab, setActiveTab] = useState('design');
-
+    // FIX: Added previewMode to destructuring
+    const { elements, selectedId, updateProject, previewMode } = useEditor();
     const element = selectedId ? elements[selectedId] : null;
+    const [bgMode, setBgMode] = useState<'color' | 'image'>('color');
 
-    // --- UPDATERS ---
-    const updateProp = (path: string, value: any) => {
-        if (!selectedId) return;
-        const newElements = { ...elements };
-        const keys = path.split('.');
-        let current = newElements[selectedId].props;
-        for (let i = 0; i < keys.length - 1; i++) {
-            if (!current[keys[i]]) current[keys[i]] = {};
-            current = current[keys[i]];
-        }
-        current[keys[keys.length - 1]] = value;
-        updateProject(newElements);
-    };
+    // NEW: Animation Scope State ('single' = Selected Element, 'all' = All siblings in Frame)
+    const [animScope, setAnimScope] = useState<'single' | 'all'>('single');
 
-    const updateEvent = (type: string, action: any) => {
-        if (!selectedId) return;
-        const newElements = { ...elements };
-        if (!newElements[selectedId].events) newElements[selectedId].events = {};
+    // FIX: Hide sidebar completely in Preview Mode
+    if (previewMode) return null;
 
-        if (action === null) {
-            delete (newElements[selectedId].events as any)[type];
-        } else {
-            (newElements[selectedId].events as any)[type] = action;
-        }
-        updateProject(newElements);
-    };
-
-    // --- EMPTY STATE ---
     if (!element) {
         return (
-            <div className="w-[280px] bg-[#333333] border-l border-[#252526] h-full flex flex-col text-[#cccccc]">
-                <div className="p-4 border-b border-[#252526] bg-[#333333]">
-                    <h2 className="font-bold text-sm flex items-center gap-2">
-                        <Globe size={16} className="text-[#007acc]" /> Project Settings
-                    </h2>
-                </div>
-                <div className="p-4 text-center">
-                    <div className="p-4 border border-dashed border-[#444] rounded-lg bg-[#252526]">
-                        <span className="text-xs text-[#888]">Select an element to edit</span>
-                    </div>
-                </div>
+            <div className="w-[280px] bg-[#1e1e1e] border-l border-[#252526] h-full flex flex-col items-center justify-center text-[#666]">
+                <p className="text-xs">Select an element to edit</p>
             </div>
         );
     }
 
+    const updateStyle = (key: string, value: any) => {
+        const newElements = { ...elements };
+        const unitlessKeys = ['fontWeight', 'opacity', 'zIndex', 'flexGrow', 'scale', 'lineHeight'];
+        const finalValue = (typeof value === 'number' && !unitlessKeys.includes(key)) ? `${value}px` : value;
+
+        // 1. DETERMINE TARGETS
+        let targetIds = [element.id]; // Default: Just the selected element
+
+        if (animScope === 'all' && key.startsWith('animation')) {
+            // Find the Parent Frame (Artboard)
+            const parentId = Object.keys(elements).find(k => elements[k].children?.includes(element.id));
+            if (parentId) {
+                const parent = elements[parentId];
+                // If parent is an Artboard/Page, target ALL its children (The templates/sections)
+                if (parent.type === 'webpage' || parent.type === 'canvas' || parent.type === 'page') {
+                    targetIds = parent.children || [];
+                }
+            }
+        }
+
+        // 2. BATCH UPDATE
+        targetIds.forEach(id => {
+            const currentStyle = newElements[id].props.style || {};
+
+            // Auto-set Animation defaults if selecting a type
+            let mergeStyle = {};
+            if (key === 'animationName' && value !== 'none' && !currentStyle.animationDuration) {
+                mergeStyle = {
+                    animationDuration: '0.5s',
+                    animationFillMode: 'both'
+                };
+            }
+
+            newElements[id].props.style = {
+                ...currentStyle,
+                [key]: finalValue,
+                ...mergeStyle
+            };
+        });
+
+        updateProject(newElements);
+    };
+
+    // FORCE REPLAY FUNCTION (Works with Scope)
+    const replayAnimation = () => {
+        updateStyle('--anim-trigger', Date.now());
+    };
+
+    const updateProp = (key: string, value: any) => {
+        const newElements = { ...elements };
+        newElements[element.id].props = { ...newElements[element.id].props, [key]: value };
+        updateProject(newElements);
+    };
+
     const style = element.props.style || {};
-    const isFlex = element.props.layoutMode === 'flex';
-    const onClickEvent = element.events?.onClick;
+    const getVal = (val: any, fallback = 0) => parseInt(String(val || fallback).replace('px', ''));
+    const handleBoxModelChange = (field: string, value: string) => updateStyle(field, parseInt(value) || 0);
 
     return (
-        <div className="w-[280px] bg-[#333333] border-l border-[#252526] h-full flex flex-col overflow-y-auto custom-scrollbar text-[#cccccc]">
+        <div className="w-[280px] bg-[#1e1e1e] border-l border-[#252526] h-full flex flex-col overflow-y-auto custom-scrollbar">
 
-            {/* HEADER */}
-            <div className="p-4 border-b border-[#252526] bg-[#333333] sticky top-0 z-10">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold bg-[#3c3c3c] text-[#cccccc] px-2 py-0.5 rounded uppercase tracking-wider border border-[#555]">
-                            {element.type}
-                        </span>
-                    </div>
+            {/* IDENTITY HEADER */}
+            <div className="p-3 border-b border-[#252526] bg-[#1e1e1e] sticky top-0 z-20">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[10px] font-bold bg-[#007acc] text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1">
+                        {element.type === 'text' ? <Type size={10} /> : <Box size={10} />}
+                        {element.type}
+                    </span>
                     <div className="flex gap-1">
-                        <button onClick={() => updateProject({ ...elements, [element.id]: { ...element, locked: !element.locked } })} className={cn("p-1.5 rounded hover:bg-[#3e3e42] transition-colors", element.locked ? "text-red-400" : "text-[#858585]")}>
-                            {element.locked ? <Lock size={14} /> : <Unlock size={14} />}
-                        </button>
-                        <button onClick={() => updateProject({ ...elements, [element.id]: { ...element, hidden: !element.hidden } })} className={cn("p-1.5 rounded hover:bg-[#3e3e42] transition-colors", element.hidden ? "text-[#858585]" : "text-[#007acc]")}>
-                            {element.hidden ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </button>
+                        <button onClick={() => updateProject({ ...elements, [element.id]: { ...element, locked: !element.locked } })} className={cn("p-1 rounded hover:bg-[#333]", element.locked ? "text-red-400" : "text-[#666]")}><Lock size={12} /></button>
+                        <button onClick={() => updateProject({ ...elements, [element.id]: { ...element, hidden: !element.hidden } })} className={cn("p-1 rounded hover:bg-[#333]", element.hidden ? "text-[#666]" : "text-[#ccc]")}><Eye size={12} /></button>
                     </div>
                 </div>
                 <input
-                    type="text" value={element.name}
+                    value={element.name}
                     onChange={(e) => updateProject({ ...elements, [element.id]: { ...element, name: e.target.value } })}
-                    className="w-full text-sm font-bold text-white bg-transparent outline-none border-b border-transparent hover:border-[#555] focus:border-[#007acc] transition-all pb-2 placeholder-[#555]"
-                    placeholder="Element Name"
+                    className="w-full bg-transparent text-sm font-bold text-white focus:bg-[#252526] px-1 rounded outline-none border border-transparent focus:border-[#007acc] transition-all"
                 />
-
-                {/* TABS SWITCHER */}
-                <div className="pb-2">
-                    <Tabs active={activeTab} onChange={setActiveTab} />
-                </div>
             </div>
 
-            {/* TAB CONTENT: DESIGN */}
-            {activeTab === 'design' && (
-                <div>
-
-                    {/* 1. LAYOUT */}
-                    <Section title="Layout" icon={Layout}>
-                        <Row label="Mode">
-                            <div className="flex bg-[#252526] p-0.5 rounded-md w-full border border-[#3e3e42] overflow-hidden">
-                                <button onClick={() => updateProp('layoutMode', 'canvas')} className={cn("flex-1 flex items-center justify-center gap-1.5 text-[10px] font-medium py-1 rounded-sm transition-all", !isFlex ? "bg-[#3e3e42] text-white shadow-sm" : "text-[#858585] hover:text-[#cccccc]")}>
-                                    <Maximize size={12} /> Canvas
-                                </button>
-                                <button onClick={() => updateProp('layoutMode', 'flex')} className={cn("flex-1 flex items-center justify-center gap-1.5 text-[10px] font-medium py-1 rounded-sm transition-all", isFlex ? "bg-[#3e3e42] text-white shadow-sm" : "text-[#858585] hover:text-[#cccccc]")}>
-                                    <Box size={12} /> Auto
-                                </button>
-                            </div>
-                        </Row>
-
-                        <div className="grid grid-cols-2 gap-x-2 gap-y-2 pt-2">
-                            <DraggableLabel label="W" value={parseInt(style.width?.toString() || '0') || 'Auto'} onChange={(v: number) => updateProp('style.width', `${v}px`)} />
-                            <DraggableLabel label="H" value={parseInt(style.height?.toString() || '0') || 'Auto'} onChange={(v: number) => updateProp('style.height', `${v}px`)} />
-
-                            {!isFlex && (
-                                <>
-                                    <DraggableLabel label="X" value={parseInt(style.left?.toString() || '0') || 0} onChange={(v: number) => updateProp('style.left', `${v}px`)} />
-                                    <DraggableLabel label="Y" value={parseInt(style.top?.toString() || '0') || 0} onChange={(v: number) => updateProp('style.top', `${v}px`)} />
-                                </>
-                            )}
-                        </div>
-
-                        <div className="mt-3 pt-3 border-t border-[#3e3e42] grid grid-cols-2 gap-2">
-                            <DraggableLabel label="Radius" value={parseInt(style.borderRadius?.toString() || '0') || 0} onChange={(v: number) => updateProp('style.borderRadius', `${v}px`)} min={0} max={100} />
-                            <DraggableLabel label="Padding" value={parseInt(style.padding?.toString() || '0') || 0} onChange={(v: number) => updateProp('style.padding', `${v}px`)} min={0} max={100} />
-                        </div>
-
-                        <div className="mt-3 pt-3 border-t border-[#3e3e42] flex items-center justify-between px-1">
-                            <span className="text-[10px] font-medium text-[#999999]">Clip Content</span>
-                            <Switch
-                                checked={style.overflow === 'hidden'}
-                                onChange={(checked: boolean) => updateProp('style.overflow', checked ? 'hidden' : 'visible')}
+            {/* LAYOUT */}
+            <Section title="Layout">
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                    <NumberInput label="W" value={getVal(style.width, 'auto')} onChange={(v: number) => updateStyle('width', v)} />
+                    <NumberInput label="H" value={getVal(style.height, 'auto')} onChange={(v: number) => updateStyle('height', v)} />
+                </div>
+                {element.props.style?.position === 'absolute' && (
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                        <NumberInput label="X" value={getVal(style.left)} onChange={(v: number) => updateStyle('left', v)} />
+                        <NumberInput label="Y" value={getVal(style.top)} onChange={(v: number) => updateStyle('top', v)} />
+                    </div>
+                )}
+                <div className="h-px bg-[#2a2a2c] my-3" />
+                <Row label="Display">
+                    <ToggleGroup
+                        value={element.props.layoutMode || 'canvas'} onChange={(v: any) => updateProp('layoutMode', v)}
+                        options={[{ value: 'canvas', icon: <Maximize size={12} /> }, { value: 'flex', icon: <Box size={12} /> }, { value: 'grid', icon: <Grid size={12} /> }]}
+                    />
+                </Row>
+                {element.props.layoutMode === 'flex' && (
+                    <div className="mt-2 space-y-2 p-2 bg-[#252526] rounded border border-[#3e3e42]">
+                        <Row label="Dir">
+                            <ToggleGroup value={style.flexDirection || 'row'} onChange={(v: string) => updateStyle('flexDirection', v)}
+                                options={[{ value: 'row', icon: <ArrowRight size={12} /> }, { value: 'column', icon: <ArrowDown size={12} /> }]}
                             />
-                        </div>
-                    </Section>
-
-                    {/* 2. APPEARANCE */}
-                    <Section title="Appearance" icon={Palette}>
-                        <Row label="Fill">
-                            <ColorPicker value={style.backgroundColor || ''} onChange={(v) => updateProp('style.backgroundColor', v)} />
                         </Row>
-                        <div className="pt-3">
-                            <div className="flex justify-between mb-1.5">
-                                <span className="text-[10px] font-medium text-[#999999]">Opacity</span>
-                                <span className="text-[10px] font-mono text-[#cccccc]">{Math.round(Number(style.opacity || 1) * 100)}%</span>
-                            </div>
-                            <input
-                                type="range" min="0" max="1" step="0.01"
-                                value={style.opacity !== undefined ? style.opacity : 1}
-                                onChange={(e) => updateProp('style.opacity', e.target.value)}
-                                className="w-full h-1 bg-[#444] rounded-lg appearance-none cursor-pointer accent-[#007acc]"
+                        <Row label="Align">
+                            <ToggleGroup value={style.alignItems || 'stretch'} onChange={(v: string) => updateStyle('alignItems', v)}
+                                options={[{ value: 'flex-start', icon: <AlignLeft size={12} className="-rotate-90" /> }, { value: 'center', icon: <AlignCenter size={12} className="-rotate-90" /> }, { value: 'flex-end', icon: <AlignRight size={12} className="-rotate-90" /> }]}
                             />
-                        </div>
+                        </Row>
+                        <Row label="Gap"><NumberInput value={getVal(style.gap, 0)} onChange={(v: number) => updateStyle('gap', v)} /></Row>
+                    </div>
+                )}
+                <div className="mt-4 mb-2">
+                    <BoxModel
+                        margin={{ top: getVal(style.marginTop), right: getVal(style.marginRight), bottom: getVal(style.marginBottom), left: getVal(style.marginLeft) }}
+                        padding={{ top: getVal(style.paddingTop), right: getVal(style.paddingRight), bottom: getVal(style.paddingBottom), left: getVal(style.paddingLeft) }}
+                        onChange={handleBoxModelChange}
+                    />
+                </div>
+            </Section>
 
-                        <div className="mt-4 pt-3 border-t border-[#3e3e42]">
-                            <Row label="Border">
-                                <div className="flex gap-2 w-full">
-                                    <div className="w-16"><DraggableLabel label="W" value={parseInt(style.borderWidth?.toString() || '0') || 0} onChange={(v: number) => updateProp('style.borderWidth', `${v}px`)} min={0} max={20} /></div>
-                                    <div className="flex-1"><ColorPicker value={style.borderColor || ''} onChange={(v) => updateProp('style.borderColor', v)} /></div>
-                                </div>
-                            </Row>
-                        </div>
-                    </Section>
+            {/* ANIMATION */}
+            <Section title="Animation">
+                <div className="space-y-3">
+                    {/* SCOPE TOGGLE: Apply to One or All */}
+                    <Row label="Apply To">
+                        <ToggleGroup
+                            value={animScope}
+                            onChange={setAnimScope}
+                            options={[
+                                { value: 'single', icon: <MousePointer2 size={12} />, label: 'Selected' },
+                                { value: 'all', icon: <Layers size={12} />, label: 'All in Frame' },
+                            ]}
+                        />
+                    </Row>
 
-                    {/* 3. TYPOGRAPHY */}
-                    {(element.type === 'text' || element.type === 'button' || element.type === 'heading') && (
-                        <Section title="Typography" icon={Type}>
-                            <Row label="Content">
-                                <input
-                                    value={element.content || ''}
-                                    onChange={(e) => updateProject({ ...elements, [element.id]: { ...element, content: e.target.value } })}
-                                    className="w-full bg-[#3c3c3c] border border-[#3e3e42] rounded-sm px-2 py-1 text-xs outline-none focus:border-[#007acc] text-white transition-all placeholder-[#666]"
+                    <Row label="Type">
+                        <div className="flex gap-2 w-full">
+                            <SelectInput
+                                value={style.animationName || 'none'}
+                                onChange={(v: string) => updateStyle('animationName', v)}
+                                options={[
+                                    { value: 'none', label: 'None' },
+                                    { value: 'fade-in', label: 'Fade In' },
+                                    { value: 'slide-up', label: 'Slide Up' },
+                                    { value: 'scale-up', label: 'Scale Up' },
+                                    { value: 'bounce', label: 'Bounce' },
+                                ]}
+                            />
+                            {/* REPLAY BUTTON */}
+                            <button
+                                onClick={replayAnimation}
+                                className="p-1 bg-[#333] border border-[#3e3e42] rounded hover:bg-[#444] text-[#ccc] hover:text-white transition-colors"
+                                title="Replay Animation"
+                            >
+                                <RotateCw size={12} />
+                            </button>
+                        </div>
+                    </Row>
+                    {style.animationName && style.animationName !== 'none' && (
+                        <>
+                            <div className="grid grid-cols-2 gap-2">
+                                <NumberInput label="Dur (s)" value={parseFloat(style.animationDuration || '0.3')} onChange={(v: number) => updateStyle('animationDuration', `${v}s`)} step={0.1} />
+                                <NumberInput label="Dly (s)" value={parseFloat(style.animationDelay || '0')} onChange={(v: number) => updateStyle('animationDelay', `${v}s`)} step={0.1} />
+                            </div>
+                            <Row label="Ease">
+                                <SelectInput
+                                    value={style.animationTimingFunction || 'ease'} onChange={(v: string) => updateStyle('animationTimingFunction', v)}
+                                    options={[{ value: 'ease', label: 'Ease' }, { value: 'linear', label: 'Linear' }, { value: 'ease-in-out', label: 'Smooth' }, { value: 'cubic-bezier(0.34, 1.56, 0.64, 1)', label: 'Spring' }]}
                                 />
                             </Row>
-                            <Row label="Color">
-                                <ColorPicker value={style.color || ''} onChange={(v) => updateProp('style.color', v)} />
-                            </Row>
-                            <div className="grid grid-cols-2 gap-2 pt-2">
-                                <DraggableLabel label="Size" value={parseInt(style.fontSize?.toString() || '16') || 16} onChange={(v: number) => updateProp('style.fontSize', `${v}px`)} min={8} max={120} />
-                                <DraggableLabel label="Weight" value={parseInt(style.fontWeight?.toString() || '400') || 400} onChange={(v: number) => updateProp('style.fontWeight', v)} min={100} max={900} />
-                            </div>
-                            <div className="mt-3 flex justify-between bg-[#252526] p-1 rounded-sm border border-[#3e3e42]">
-                                {['left', 'center', 'right', 'justify'].map((align) => (
-                                    <button
-                                        key={align}
-                                        onClick={() => updateProp('style.textAlign', align)}
-                                        className={cn("p-1.5 rounded-sm transition-colors hover:bg-[#333333]", style.textAlign === align ? "bg-[#333333] text-white" : "text-[#858585]")}
-                                    >
-                                        {align === 'left' && <AlignLeft size={14} />}
-                                        {align === 'center' && <AlignCenter size={14} />}
-                                        {align === 'right' && <AlignRight size={14} />}
-                                        {align === 'justify' && <AlignJustify size={14} />}
-                                    </button>
-                                ))}
-                            </div>
-                        </Section>
+                        </>
                     )}
                 </div>
-            )}
+            </Section>
 
-            {/* TAB CONTENT: PROTOTYPE (INTERACTIONS) */}
-            {activeTab === 'interact' && (
-                <div>
-                    <Section title="Interactions" icon={MousePointer2}>
-                        <div className="space-y-4">
-
-                            {/* ON CLICK TRIGGER */}
-                            <div className="bg-[#252526] border border-[#3e3e42] rounded-md p-3">
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="text-xs font-bold text-[#cccccc] flex items-center gap-1.5">
-                                        <Zap size={14} className="text-amber-500" /> On Click
-                                    </span>
-                                    {onClickEvent && (
-                                        <button onClick={() => updateEvent('onClick', null)} className="text-[#666] hover:text-red-400">
-                                            <Trash2 size={14} />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* ACTION SELECTOR */}
-                                <select
-                                    value={(onClickEvent as any)?.action || 'none'}
-                                    onChange={(e) => updateEvent('onClick', { action: e.target.value, value: '' })}
-                                    className="w-full bg-[#3c3c3c] border border-[#3e3e42] rounded-sm px-2 py-1.5 text-xs text-white outline-none focus:border-[#007acc] mb-2"
-                                >
-                                    <option value="none">No Action</option>
-                                    <option value="link">Open URL</option>
-                                    <option value="scroll">Scroll to Section</option>
-                                </select>
-
-                                {/* ACTION DETAILS */}
-                                {(onClickEvent as any)?.action === 'link' && (
-                                    <div className="animate-in slide-in-from-top-1">
-                                        <div className="flex items-center gap-2 bg-[#3c3c3c] border border-[#3e3e42] rounded-sm px-2 py-1.5 focus-within:border-[#007acc]">
-                                            <LinkIcon size={12} className="text-[#999]" />
-                                            <input
-                                                placeholder="https://google.com"
-                                                value={(onClickEvent as any)?.value || ''}
-                                                onChange={(e) => updateEvent('onClick', { ...onClickEvent, value: e.target.value })}
-                                                className="w-full text-xs bg-transparent text-white outline-none placeholder-[#666]"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {(onClickEvent as any)?.action === 'scroll' && (
-                                    <div className="animate-in slide-in-from-top-1">
-                                        <div className="flex items-center gap-2 bg-[#3c3c3c] border border-[#3e3e42] rounded-sm px-2 py-1.5 focus-within:border-[#007acc]">
-                                            <Hash size={12} className="text-[#999]" />
-                                            <input
-                                                placeholder="section-id"
-                                                value={(onClickEvent as any)?.value || ''}
-                                                onChange={(e) => updateEvent('onClick', { ...onClickEvent, value: e.target.value })}
-                                                className="w-full text-xs bg-transparent text-white outline-none placeholder-[#666]"
-                                            />
-                                        </div>
-                                        <div className="mt-2 text-[10px] text-[#777]">
-                                            Tip: Use the ID of any section on your page.
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                        </div>
-                    </Section>
-
-                    <div className="p-4 text-center">
-                        <div className="inline-flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#3e3e42] rounded-xl bg-[#252526] text-[#555]">
-                            <MousePointer2 size={24} className="mb-2 opacity-50" />
-                            <span className="text-xs font-medium">Select an element to add interactions</span>
-                        </div>
-                    </div>
+            {/* TRANSFORM */}
+            <Section title="Transform">
+                <Row label="Opacity"><input type="range" min="0" max="1" step="0.01" value={style.opacity !== undefined ? style.opacity : 1} onChange={(e) => updateStyle('opacity', e.target.value)} className="w-full h-1 bg-[#3e3e42] rounded-lg accent-[#007acc]" /></Row>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                    <NumberInput label="Rotate" value={getVal(style.rotate, 0)} onChange={(v: number) => updateStyle('rotate', `${v}deg`)} />
+                    <NumberInput label="Scale" value={Number(style.scale) || 1} onChange={(v: number) => updateStyle('scale', v)} step={0.1} />
                 </div>
+                <div className="mt-2"><Row label="Z-Index"><NumberInput value={getVal(style.zIndex, 0)} onChange={(v: number) => updateStyle('zIndex', v)} /></Row></div>
+            </Section>
+
+            {/* FILLS */}
+            <Section title="Fills">
+                <div className="flex bg-[#252526] p-0.5 rounded border border-[#3e3e42] mb-3">
+                    <button onClick={() => setBgMode('color')} className={cn("flex-1 py-1 rounded text-[10px] font-medium transition-all", bgMode === 'color' ? "bg-[#3e3e42] text-white" : "text-[#858585]")}><PaintBucket size={10} className="inline mr-1" />Color</button>
+                    <button onClick={() => setBgMode('image')} className={cn("flex-1 py-1 rounded text-[10px] font-medium transition-all", bgMode === 'image' ? "bg-[#3e3e42] text-white" : "text-[#858585]")}><ImageIcon size={10} className="inline mr-1" />Image</button>
+                </div>
+                {bgMode === 'color' ? (
+                    <ColorInput value={style.backgroundColor || 'transparent'} onChange={(v) => { updateStyle('backgroundColor', v); updateStyle('backgroundImage', 'none'); }} />
+                ) : (
+                    <div className="space-y-2">
+                        <TextInput value={style.backgroundImage?.replace('url(', '').replace(')', '') || ''} onChange={(v: string) => { updateStyle('backgroundImage', `url(${v})`); updateStyle('backgroundSize', 'cover'); updateStyle('backgroundPosition', 'center'); updateStyle('backgroundColor', 'transparent'); }} placeholder="Image URL..." icon={ImageIcon} />
+                        <Row label="Size"><SelectInput value={style.backgroundSize || 'cover'} onChange={(v: string) => updateStyle('backgroundSize', v)} options={[{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'auto', label: 'Auto' }]} /></Row>
+                    </div>
+                )}
+            </Section>
+
+            {/* TYPOGRAPHY */}
+            {['text', 'button', 'heading'].includes(element.type) && (
+                <Section title="Typography">
+                    <Row label="Size"><NumberInput value={getVal(style.fontSize, 16)} onChange={(v: number) => updateStyle('fontSize', v)} /></Row>
+                    <Row label="Weight"><NumberInput value={getVal(style.fontWeight, 400)} onChange={(v: number) => updateStyle('fontWeight', v)} step={100} min={100} max={900} /></Row>
+                    <Row label="Color"><ColorInput value={style.color || '#000000'} onChange={(v) => updateStyle('color', v)} /></Row>
+                    <Row label="Align">
+                        <ToggleGroup value={style.textAlign || 'left'} onChange={(v: string) => updateStyle('textAlign', v)} options={[{ value: 'left', icon: <AlignLeft size={12} /> }, { value: 'center', icon: <AlignCenter size={12} /> }, { value: 'right', icon: <AlignRight size={12} /> }]} />
+                    </Row>
+                </Section>
             )}
+
+            {/* BORDERS */}
+            <Section title="Borders">
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                    <NumberInput label="Radius" value={getVal(style.borderRadius)} onChange={(v: number) => updateStyle('borderRadius', v)} />
+                    <NumberInput label="Width" value={getVal(style.borderWidth)} onChange={(v: number) => updateStyle('borderWidth', v)} />
+                </div>
+                <Row label="Color"><ColorInput value={style.borderColor || 'transparent'} onChange={(v) => updateStyle('borderColor', v)} /></Row>
+            </Section>
         </div>
     );
 };

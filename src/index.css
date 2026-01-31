@@ -1,142 +1,141 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* VS CODE DARK THEME DEFAULTS */
-body {
-  background-color: #1e1e1e;
-  /* Main Editor BG */
-  color: #d4d4d4;
-  /* Main Text */
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  /* Prevent native scroll, app handles it */
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* --- LOGO ANIMATIONS --- */
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -12;
+    /* seamless loop for 3 3 dasharray */
+  }
 }
 
-/* Custom Scrollbar to match VS Code */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+@keyframes draw-path {
+  0% {
+    stroke-dashoffset: 24;
+    opacity: 0;
+  }
+
+  40% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: #1e1e1e;
+@keyframes pop-in {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #424242;
-  border-radius: 5px;
-  border: 2px solid #1e1e1e;
+@keyframes logo-float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #4f4f4f;
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(300%);
+  }
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: #1e1e1e;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #424242;
-  border-radius: 5px;
-  border: 2px solid #1e1e1e;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #4f4f4f;
-}
-
-/* Selection Color */
-::selection {
-  background: #264f78;
-  color: white;
-}
-
-/* --- CUSTOM INPUTS (No Browser Default) --- */
-input,
-textarea,
-select {
-  outline: none;
-  font-size: 11px !important;
-  transition: all 0.1s ease-out;
-}
-
-/* Sharp Focus Rings (Figma Style) */
-input:focus,
-textarea:focus,
-select:focus {
-  border-color: #007acc !important;
-  box-shadow: 0 0 0 1px #007acc;
-}
-
-/* Range Slider Reset */
-input[type=range] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-}
-
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  height: 12px;
-  width: 12px;
-  border-radius: 50%;
-  background: #007acc;
-  border: 2px solid white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-  margin-top: -4px;
-  cursor: pointer;
-}
-
-input[type=range]::-webkit-slider-runnable-track {
-  width: 100%;
-  height: 4px;
-  background: #3f3f46;
-  border-radius: 2px;
-}
-
-input[type=range]:focus {
-  box-shadow: none !important;
-}
-
-/* Button Reset */
-button {
-  cursor: pointer;
-  border: none;
-  background: none;
-  font-family: inherit;
-}
-
-/* Disable text selection on drag handles */
-[draggable="true"] {
-  -webkit-user-drag: element;
-}
-
-/* Animation for smooth UI */
-@keyframes fadeIn {
+/* --- ELEMENT ANIMATIONS --- */
+@keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(-4px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.15s ease-out;
+@keyframes slide-up {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scale-up {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bounce {
+
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+
+  40% {
+    transform: translateY(-20px);
+  }
+
+  60% {
+    transform: translateY(-10px);
+  }
+}
+
+/* --- UI HELPERS --- */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+* {
+  transform-box: fill-box;
 }

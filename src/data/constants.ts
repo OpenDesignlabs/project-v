@@ -1,12 +1,12 @@
 import {
     Type, Square, Box, Layout, Grid, Image as ImageIcon, Video,
     FormInput, CheckSquare, List, Link, Frame, Columns, AlignCenter, CreditCard, Globe, Monitor,
-    Sparkles, Zap
+    Sparkles, Zap, ListOrdered, Table as TableIcon, GalleryHorizontal, User
 } from 'lucide-react';
 import type { ComponentConfig, VectraProject } from '../types';
 
 // Storage key for localStorage - bump this to force new data
-export const STORAGE_KEY = 'vectra_design_v66';
+export const STORAGE_KEY = 'vectra_design_v67';
 
 export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
     // --- BASIC ---
@@ -31,6 +31,10 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
     container: {
         icon: Box, label: 'Container', category: 'layout',
         defaultProps: { className: 'p-6 border border-dashed border-slate-300 rounded bg-slate-50/50 min-h-[100px] flex flex-col gap-4' }
+    },
+    card: {
+        icon: CreditCard, label: 'Card', category: 'layout',
+        defaultProps: { className: 'p-6 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col gap-4 hover:shadow-md transition-shadow' }
     },
     stack_v: {
         icon: List, label: 'Vertical Stack', category: 'layout',
@@ -69,6 +73,23 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
         defaultProps: { className: 'w-full aspect-video bg-slate-900 rounded-xl flex items-center justify-center text-white' }, defaultContent: 'Video Placeholder'
     },
 
+    // --- SMART COMPONENTS ---
+    accordion: {
+        icon: ListOrdered, label: 'Accordion', category: 'sections',
+        defaultProps: { className: 'w-full max-w-md' },
+        defaultContent: 'Smart Accordion'
+    },
+    carousel: {
+        icon: GalleryHorizontal, label: 'Carousel', category: 'media',
+        defaultProps: { className: 'w-full max-w-2xl' },
+        defaultContent: 'Smart Carousel'
+    },
+    table: {
+        icon: TableIcon, label: 'Table', category: 'layout',
+        defaultProps: { className: 'w-full' },
+        defaultContent: 'Data Table'
+    },
+
     // --- MARKETPLACE ---
     hero_geometric: { icon: Sparkles, label: 'Geometric Hero', category: 'sections', defaultProps: {}, defaultContent: '' },
     feature_hover: { icon: Zap, label: 'Hover Features', category: 'sections', defaultProps: { className: 'w-full relative bg-white', layoutMode: 'canvas' }, defaultContent: '' },
@@ -78,7 +99,7 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
     pricing: { icon: CreditCard, label: 'Pricing Card', category: 'sections', defaultProps: { className: 'p-8 border border-slate-200 rounded-2xl shadow-sm hover:shadow-xl transition-all bg-white flex flex-col gap-4 max-w-sm' } },
     navbar: { icon: Globe, label: 'Navbar', category: 'sections', defaultProps: { className: 'w-full px-8 py-4 flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-50' } },
 
-    // --- ARTBOARDS (Redesigned as Physical Sheets) ---
+    // --- ARTBOARDS ---
     webpage: {
         icon: Monitor, label: 'Desktop Frame', category: 'layout',
         defaultProps: {
@@ -108,7 +129,6 @@ export const INITIAL_DATA: VectraProject = {
         props: {
             layoutMode: 'canvas',
             className: 'shadow-lg overflow-hidden',
-            // Positioned on the Infinite Canvas
             style: { position: 'absolute', left: '100px', top: '100px', width: '1200px', height: '1200px', backgroundColor: '#f2f0ef' }
         }
     },
@@ -119,7 +139,6 @@ export const INITIAL_DATA: VectraProject = {
         props: {
             layoutMode: 'canvas',
             className: 'shadow-lg overflow-hidden border border-slate-200',
-            // Positioned to the right of Desktop
             style: { position: 'absolute', left: '1400px', top: '100px', width: '375px', height: '812px', backgroundColor: '#f2f0ef' }
         }
     }

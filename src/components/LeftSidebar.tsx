@@ -1,13 +1,15 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, Suspense, lazy } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { TEMPLATES } from '../data/templates';
-import { LayersPanel } from './panels/LayersPanel';
 import {
     Plus, Layers, File, Image as ImageIcon, Settings,
-    Search, X, Type, Layout, FormInput, CreditCard, Puzzle, Upload, ChevronRight
+    Search, X, Type, Layout, FormInput, CreditCard, Puzzle, Upload, ChevronRight, Loader2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { processImportedCode, generateComponentId } from '../utils/importHelpers';
+
+// LAZY LOAD PANELS
+const LayersPanel = lazy(() => import('./panels/LayersPanel').then(m => ({ default: m.LayersPanel })));
 
 type DrawerTab = 'basic' | 'layout' | 'forms' | 'media' | 'sections' | 'templates';
 
@@ -38,7 +40,6 @@ export const LeftSidebar = () => {
         setActivePanel((prev: typeof activePanel) => prev === panel ? null : panel);
     };
 
-    // Filter Logic
     const filteredComponents = activeCat !== 'templates'
         ? Object.entries(componentRegistry)
             .filter(([type]) => !HIDDEN_TYPES.includes(type))
@@ -60,7 +61,6 @@ export const LeftSidebar = () => {
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = (event) => {
             const content = event.target?.result as string;
@@ -75,7 +75,7 @@ export const LeftSidebar = () => {
     return (
         <div className="w-[60px] h-full flex flex-col border-r border-[#3f3f46] bg-[#333333] relative z-50">
 
-            {/* 1. THE MAIN RAIL */}
+            {/* 1. MAIN RAIL */}
             <div className="flex flex-col items-center py-4 gap-4 h-full bg-[#333333] z-50 relative">
                 <NavButton icon={Plus} active={activePanel === 'add'} onClick={() => togglePanel('add')} tooltip="Insert Elements" />
                 <div className="w-8 h-[1px] bg-[#4f4f4f] my-1" />
@@ -90,7 +90,6 @@ export const LeftSidebar = () => {
             {/* 2. ADD DRAWER */}
             {activePanel === 'add' && (
                 <div className="absolute left-[60px] top-0 bottom-0 w-[420px] bg-[#252526] border-r border-[#3f3f46] shadow-2xl z-40 flex text-[#cccccc]">
-                    {/* A. Sub-Category Rail */}
                     <div className="w-16 bg-[#2d2d2d] border-r border-[#3f3f46] flex flex-col items-center py-4 gap-1 overflow-y-auto no-scrollbar">
                         {CATEGORIES.map(cat => (
                             <button
@@ -107,27 +106,21 @@ export const LeftSidebar = () => {
                         ))}
                     </div>
 
-                    {/* B. Content Panel */}
                     <div className="flex-1 flex flex-col min-w-0 bg-[#252526]">
                         <div className="p-4 border-b border-[#3f3f46] flex items-center justify-between">
                             <h2 className="font-bold text-[#cccccc] text-xs uppercase tracking-wide">
                                 {search ? 'Search Results' : CATEGORIES.find(c => c.id === activeCat)?.label}
                             </h2>
-                            <button onClick={() => setActivePanel(null)} className="text-[#999999] hover:text-white transition-colors p-1 rounded hover:bg-[#37373d]">
-                                <X size={16} />
-                            </button>
+                            <button onClick={() => setActivePanel(null)} className="text-[#999999] hover:text-white transition-colors p-1 rounded hover:bg-[#37373d]"><X size={16} /></button>
                         </div>
 
                         <div className="px-4 py-3 border-b border-[#3f3f46] bg-[#2d2d2d]">
                             <div className="relative">
                                 <Search size={14} className="absolute left-3 top-2.5 text-[#999999]" />
                                 <input
-                                    type="text"
-                                    placeholder="Search components..."
+                                    type="text" placeholder="Search..."
                                     className="w-full pl-9 pr-3 py-2 bg-[#3c3c3c] border border-transparent rounded-sm text-xs text-white placeholder-[#999999] outline-none focus:ring-1 focus:ring-[#007acc] transition-all font-medium"
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    autoFocus
+                                    value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
                                 />
                             </div>
                         </div>
@@ -159,41 +152,27 @@ export const LeftSidebar = () => {
                                     ))}
                                 </div>
                             )}
-
-                            {filteredComponents.length === 0 && filteredTemplates.length === 0 && (
-                                <div className="text-center py-20 text-[#666666]">
-                                    <Search size={40} className="mx-auto mb-4 opacity-20" />
-                                    <p className="text-xs">No results found for "{search}"</p>
-                                </div>
-                            )}
                         </div>
-
-                        {/* Footer (Import Component) */}
                         <div className="p-3 border-t border-[#3f3f46] bg-[#222222]">
                             <label className="flex items-center justify-center gap-2 text-xs text-[#007acc] cursor-pointer hover:text-white hover:bg-[#007acc]/20 rounded py-2 transition-all font-bold border border-transparent hover:border-[#007acc]/50">
-                                <Upload size={14} />
-                                <span>Import React Component</span>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".tsx,.jsx,.js"
-                                    className="hidden"
-                                    onChange={handleFileUpload}
-                                />
+                                <Upload size={14} /> <span>Import React Component</span>
+                                <input ref={fileInputRef} type="file" accept=".tsx,.jsx,.js" className="hidden" onChange={handleFileUpload} />
                             </label>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* 3. LAYERS PANEL */}
+            {/* 3. LAYERS PANEL (LAZY LOADED) */}
             {activePanel === 'layers' && (
                 <div className="absolute left-[60px] top-0 bottom-0 w-[300px] bg-[#252526] border-r border-[#3f3f46] shadow-xl z-40 flex flex-col animate-in slide-in-from-left-5 duration-100">
-                    <LayersPanel />
+                    <Suspense fallback={<div className="flex items-center justify-center h-full text-[#666] gap-2"><Loader2 className="animate-spin" size={16} /> Loading Layers...</div>}>
+                        <LayersPanel />
+                    </Suspense>
                 </div>
             )}
 
-            {/* 4. OTHER PANELS (Placeholder for now) */}
+            {/* 4. OTHER PANELS */}
             {activePanel && !['add', 'layers'].includes(activePanel) && (
                 <div className="absolute left-[60px] top-0 bottom-0 w-[300px] bg-[#252526] border-r border-[#3f3f46] shadow-xl z-40 p-6 flex flex-col text-[#cccccc]">
                     <div className="flex items-center justify-between mb-6">
@@ -210,8 +189,7 @@ export const LeftSidebar = () => {
     );
 };
 
-// Helper for Rail Buttons
-const NavButton = ({ icon: Icon, active, onClick, tooltip }: { icon: any; active: boolean; onClick: () => void; tooltip?: string; }) => (
+const NavButton = ({ icon: Icon, active, onClick, tooltip }: any) => (
     <button onClick={onClick} className={cn("w-10 h-10 rounded flex items-center justify-center transition-all duration-100 relative group", active ? "text-white opacity-100 border-l-2 border-[#007acc] bg-[#252526]" : "text-[#999999] opacity-70 hover:opacity-100 hover:text-white")}>
         <Icon size={22} strokeWidth={1.5} />
         {tooltip && <span className="absolute left-full ml-3 px-2 py-1 bg-[#252526] text-white text-[10px] rounded border border-[#3f3f46] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-[60] shadow-md">{tooltip}</span>}

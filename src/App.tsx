@@ -1,25 +1,84 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { EditorProvider, useEditor } from './context/EditorContext';
-import { Loader2 } from 'lucide-react';
-import { ImportModal } from './components/ImportModal';
 
-// 1. LAZY LOAD MAJOR CHUNKS (Split JS Bundle)
+// 1. LAZY LOAD CHUNKS
 const Header = lazy(() => import('./components/Header').then(module => ({ default: module.Header })));
 const LeftSidebar = lazy(() => import('./components/LeftSidebar').then(module => ({ default: module.LeftSidebar })));
 const RightSidebar = lazy(() => import('./components/RightSidebar').then(module => ({ default: module.RightSidebar })));
 const Canvas = lazy(() => import('./components/Canvas').then(module => ({ default: module.Canvas })));
+const ImportModal = lazy(() => import('./components/ImportModal').then(module => ({ default: module.ImportModal })));
 
-// 2. LOADING SCREEN (Shown instanty)
+// --- ANIMATED LOGO COMPONENT ---
+const VectraAnimatedLogo = () => (
+  <svg width="120" height="120" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-[logo-float_3s_ease-in-out_infinite]">
+    <svg x="6" y="6" width="28" height="28" viewBox="0 0 24 24">
+      {/* 1. Left Leg (Dashed) - Flowing Animation */}
+      <path
+        d="m5 6 7 14"
+        stroke="#a5b4fc"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        className="animate-[dash-flow_1s_linear_infinite]"
+      />
+
+      {/* 2. Right Leg (Solid) - Drawing Animation */}
+      <path
+        d="m12 20 7-14"
+        stroke="#a5b4fc"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeDasharray="24"
+        strokeDashoffset="24"
+        className="animate-[draw-path_2s_ease-out_infinite]"
+      />
+
+      {/* 3. Dots - Pop In Sequence */}
+      <circle
+        cx="5" cy="6" r="1.5" fill="#a5b4fc"
+        className="animate-[pop-in_2s_ease-in-out_infinite]"
+        style={{ animationDelay: '0s', transformOrigin: 'center' }}
+      />
+      <circle
+        cx="19" cy="6" r="1.5" fill="#a5b4fc"
+        className="animate-[pop-in_2s_ease-in-out_infinite]"
+        style={{ animationDelay: '0.3s', transformOrigin: 'center' }}
+      />
+
+      {/* 4. Center Anchor - Pulse */}
+      <path
+        fill="#a5b4fc" d="M10.5 18.5h3v3h-3z"
+        className="animate-pulse"
+      />
+    </svg>
+  </svg>
+);
+
+// --- LOADING SCREEN ---
 const LoadingScreen = () => (
-  <div className="w-full h-screen bg-[#1e1e1e] flex flex-col items-center justify-center text-[#999999] gap-3">
-    <Loader2 size={32} className="animate-spin text-[#007acc]" />
-    <span className="text-xs font-mono uppercase tracking-wider">Initializing Vectra Engine...</span>
+  <div className="w-full h-screen bg-[#0f0f11] flex flex-col items-center justify-center gap-8 z-[9999] relative overflow-hidden">
+    {/* Background Glow */}
+    <div className="absolute w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[100px] animate-pulse" />
+
+    {/* Logo */}
+    <div className="relative z-10 drop-shadow-[0_0_15px_rgba(165,180,252,0.3)]">
+      <VectraAnimatedLogo />
+    </div>
+
+    {/* Loading Bar */}
+    <div className="flex flex-col items-center gap-3 z-10">
+      <div className="w-32 h-1 bg-[#252526] rounded-full overflow-hidden">
+        <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 w-1/2 animate-[shimmer_1s_infinite_linear] rounded-full" />
+      </div>
+      <span className="text-[10px] font-bold text-indigo-300/50 tracking-[0.3em] uppercase">
+        Vectra Engine
+      </span>
+    </div>
   </div>
 );
 
-// EditorLayout contains the keyboard shortcuts logic that relies on useEditor()
 const EditorLayout = () => {
-  const { history, deleteElement, selectedId, setSelectedId, toggleInsertDrawer, setActivePanel } = useEditor();
+  const { history, deleteElement, selectedId, setSelectedId, setActivePanel } = useEditor();
   const [isImportOpen, setIsImportOpen] = useState(false);
 
   useEffect(() => {
@@ -27,7 +86,6 @@ const EditorLayout = () => {
       const target = e.target as HTMLElement;
       const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
-      // 1. Delete / Backspace
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (isTyping) return;
         if (selectedId && !['application-root', 'page-home', 'main-frame', 'main-frame-desktop', 'main-frame-mobile'].includes(selectedId)) {
@@ -36,38 +94,24 @@ const EditorLayout = () => {
         }
       }
 
-      // 2. Undo (Ctrl+Z / Cmd+Z)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
         e.preventDefault();
-        history.undo();
-      }
-
-      // 3. Redo (Ctrl+Shift+Z / Ctrl+Y)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
-        e.preventDefault();
-        history.redo();
+        if (e.shiftKey) history.redo(); else history.undo();
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'y') {
         e.preventDefault();
         history.redo();
       }
 
-      // 4. Escape (Deselect or close modals)
       if (e.key === 'Escape') {
-        if (isImportOpen) {
-          setIsImportOpen(false);
-        } else {
-          setSelectedId(null);
-        }
+        if (isImportOpen) setIsImportOpen(false);
+        else setSelectedId(null);
       }
 
-      // 5. I key (Toggle Insert Panel)
       if (e.key === 'i' && !isTyping && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         setActivePanel(prev => prev === 'add' ? null : 'add');
       }
-
-      // 6. Ctrl+I / Cmd+I (Open Import Modal)
       if ((e.ctrlKey || e.metaKey) && e.key === 'i' && !isTyping) {
         e.preventDefault();
         setIsImportOpen(true);
@@ -76,7 +120,7 @@ const EditorLayout = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [history, deleteElement, selectedId, setSelectedId, toggleInsertDrawer, isImportOpen]);
+  }, [history, deleteElement, selectedId, setSelectedId, isImportOpen]);
 
   return (
     <div className="h-screen w-full flex flex-col bg-[#1e1e1e] overflow-hidden select-none font-sans">
@@ -89,8 +133,11 @@ const EditorLayout = () => {
         </div>
       </Suspense>
 
-      {/* Import Modal */}
-      {isImportOpen && <ImportModal onClose={() => setIsImportOpen(false)} />}
+      {isImportOpen && (
+        <Suspense fallback={null}>
+          <ImportModal onClose={() => setIsImportOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 };

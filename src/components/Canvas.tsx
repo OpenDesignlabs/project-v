@@ -112,7 +112,8 @@ export const Canvas = () => {
         return (
             <div className="flex-1 bg-white overflow-y-auto h-full w-full">
                 <div className="min-h-screen w-full flex justify-center bg-white py-10">
-                    <RenderNode elementId={activePageId} />
+                    {/* FIX: The 'key' prop here forces React to Remount the tree when Preview toggles, triggering animations. */}
+                    <RenderNode elementId={activePageId} key={`preview-${activePageId}`} />
                 </div>
             </div>
         );
@@ -135,8 +136,9 @@ export const Canvas = () => {
                     width: '100%', height: '100%'
                 }}
             >
-                <RenderNode elementId={activePageId} />
-                {guides.map((g, i) => (
+                {/* FIX: Distinct key for Editor Mode */}
+                <RenderNode elementId={activePageId} key={`editor-${activePageId}`} />
+                {!previewMode && guides.map((g, i) => (
                     <div key={i} className="absolute bg-red-500 z-[9999]" style={{
                         left: g.orientation === 'vertical' ? g.pos : g.start,
                         top: g.orientation === 'vertical' ? g.start : g.pos,
