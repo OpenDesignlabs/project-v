@@ -23,7 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 .gemini
-vectra-engine/
+# Rust Engine
+vectra-engine/target/
+vectra-engine/pkg/
+vectra-engine/*.log
 target/
 pkg/
 wasm-pack.log
