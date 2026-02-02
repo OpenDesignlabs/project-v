@@ -3,14 +3,14 @@ import { useEditor } from '../context/EditorContext';
 import { RenderNode } from './RenderNode';
 import { COMPONENT_TYPES } from '../data/constants';
 import { TEMPLATES } from '../data/templates';
-import { instantiateTemplate } from '../utils/templateUtils';
 
 export const Canvas = () => {
     const {
         activePageId, zoom, setZoom, pan, setPan,
         previewMode, setSelectedId, isPanning, setIsPanning,
         interaction, setInteraction, handleInteractionMove,
-        guides, dragData, setDragData, elements, updateProject
+        guides, dragData, setDragData, elements, updateProject,
+        instantiateTemplate
     } = useEditor();
 
     const canvasRef = useRef<HTMLDivElement>(null);

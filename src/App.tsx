@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { EditorProvider, useEditor } from './context/EditorContext';
+import { ContainerProvider } from './context/ContainerContext';
 
 // 1. LAZY LOAD CHUNKS
 const Header = lazy(() => import('./components/Header').then(module => ({ default: module.Header })));
@@ -145,9 +146,12 @@ const EditorLayout = () => {
 const App = () => {
   return (
     <EditorProvider>
-      <EditorLayout />
+      <ContainerProvider>
+        <EditorLayout />
+      </ContainerProvider>
     </EditorProvider>
   );
 };
 
 export default App;
+

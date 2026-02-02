@@ -70,8 +70,9 @@ export interface ComponentConfig {
 }
 
 export interface DragData {
-    type: 'NEW' | 'TEMPLATE' | 'ASSET';
+    type: 'NEW' | 'TEMPLATE' | 'ASSET' | 'ASSET_IMAGE';
     payload: string;
+    meta?: any;
     dropIndex?: number;
     dropParentId?: string;
 }

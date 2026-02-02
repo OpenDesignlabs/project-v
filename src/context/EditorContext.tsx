@@ -1,8 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import type { VectraProject, DragData, InteractionState, Guide, Asset, GlobalStyles, EditorTool, DeviceType, ActionType, ViewMode, ComponentConfig } from '../types';
 import { INITIAL_DATA, COMPONENT_TYPES, STORAGE_KEY } from '../data/constants';
+import { instantiateTemplate as instantiateTemplateTS } from '../utils/templateUtils';
 
-// Sidebar Panel Types
+// --- RUST ENGINE LOADER ---
+let wasmModule: any = null;
+
 export type SidebarPanel = 'add' | 'layers' | 'pages' | 'assets' | 'settings' | null;
 
 interface ExtendedEditorContextType {
@@ -44,22 +47,21 @@ interface ExtendedEditorContextType {
     deleteElement: (id: string) => void;
     history: { undo: () => void; redo: () => void };
     runAction: (action: ActionType) => void;
-    // Insert Drawer State (Legacy - for backward compat)
     isInsertDrawerOpen: boolean;
     toggleInsertDrawer: () => void;
-    // NEW: Sidebar Panel System
     activePanel: SidebarPanel;
     setActivePanel: React.Dispatch<React.SetStateAction<SidebarPanel>>;
     togglePanel: (panel: SidebarPanel) => void;
-    // Dynamic Component Registry
     componentRegistry: Record<string, ComponentConfig>;
     registerComponent: (id: string, config: ComponentConfig) => void;
+    instantiateTemplate: (rootId: string, nodes: VectraProject) => { newNodes: VectraProject; rootId: string };
+    recentComponents: string[];
+    addRecentComponent: (id: string) => void;
 }
 
 const EditorContext = createContext<ExtendedEditorContextType | undefined>(undefined);
 
 export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    // FIX: Using STORAGE_KEY (v63) for Redesigned Infinite Canvas System
     const [elements, setElements] = useState<VectraProject>(() => {
         try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || INITIAL_DATA; }
         catch { return INITIAL_DATA; }
@@ -77,26 +79,56 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const [zoom, setZoom] = useState(0.5);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [isPanning, setIsPanning] = useState(false);
+
+    // --- REPLACED JS HISTORY WITH RUST MANAGER ---
+    const historyManagerRef = useRef<any>(null);
+    // Fallback JS history for when WASM isn't ready
     const [historyStack, setHistoryStack] = useState<VectraProject[]>([INITIAL_DATA]);
     const [historyIndex, setHistoryIndex] = useState(0);
+
     const [guides, setGuides] = useState<Guide[]>([]);
     const [assets, setAssets] = useState<Asset[]>([]);
     const [globalStyles, setGlobalStyles] = useState<GlobalStyles>({
         colors: { primary: '#3b82f6', secondary: '#10b981', accent: '#f59e0b', dark: '#1e293b' },
         fonts: {}
     });
-    // Insert Drawer State (Legacy)
     const [isInsertDrawerOpen, setIsInsertDrawerOpen] = useState(false);
-
-    // NEW: Sidebar Panel State
     const [activePanel, setActivePanel] = useState<SidebarPanel>(null);
-
-    // Dynamic Component Registry - starts with default components
     const [componentRegistry, setComponentRegistry] = useState<Record<string, ComponentConfig>>(COMPONENT_TYPES);
+    const [recentComponents, setRecentComponents] = useState<string[]>([]);
+
+    const addRecentComponent = useCallback((id: string) => {
+        setRecentComponents(prev => {
+            const filtered = prev.filter(item => item !== id);
+            return [id, ...filtered].slice(0, 8);
+        });
+    }, []);
+
+    // --- INITIALIZE RUST ENGINE ---
+    useEffect(() => {
+        const initWasm = async () => {
+            try {
+                const wasm = await import('../../vectra-engine/pkg/vectra_engine.js');
+                await wasm.default();
+                wasmModule = wasm;
+
+                // Expose globally for Header.tsx code generation
+                (window as any).vectraWasm = wasm;
+
+                // Initialize HistoryManager with current state
+                const initialState = localStorage.getItem(STORAGE_KEY) || JSON.stringify(INITIAL_DATA);
+                historyManagerRef.current = new wasm.HistoryManager(initialState);
+
+                console.log("Vectra Engine (Rust): Ready - All 4 Priorities Active");
+            } catch (err) {
+                console.warn("Vectra Engine (Rust): Not found. Falling back to TypeScript.", err);
+            }
+        };
+        initWasm();
+    }, []);
 
     const toggleInsertDrawer = useCallback(() => {
         setIsInsertDrawerOpen(prev => !prev);
-        // Sync with new panel system
         setActivePanel(prev => prev === 'add' ? null : 'add');
     }, []);
 
@@ -105,41 +137,37 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return () => clearTimeout(timer);
     }, [elements]);
 
-    // Toggle panel - if same panel, close it
     const togglePanel = useCallback((panel: SidebarPanel) => {
         setActivePanel(prev => prev === panel ? null : panel);
-        // Sync legacy state
-        if (panel === 'add') {
-            setIsInsertDrawerOpen(prev => !prev);
-        }
+        if (panel === 'add') setIsInsertDrawerOpen(prev => !prev);
     }, []);
 
-    // Register new components at runtime
     const registerComponent = useCallback((id: string, config: ComponentConfig) => {
-        setComponentRegistry(prev => {
-            if (prev[id]) {
-                console.warn(`Component ${id} already exists. Overwriting.`);
-            }
-            return { ...prev, [id]: config };
-        });
+        setComponentRegistry(prev => ({ ...prev, [id]: config }));
     }, []);
-
-
 
     useEffect(() => {
         const root = document.documentElement;
         Object.entries(globalStyles.colors).forEach(([key, value]) => root.style.setProperty(`--color-${key}`, value));
     }, [globalStyles]);
 
+    // --- UPDATE PROJECT (HYBRID HISTORY) ---
     const updateProject = useCallback((newElements: VectraProject) => {
         setElements(newElements);
-        setHistoryStack(prev => {
-            const newHistory = prev.slice(0, historyIndex + 1);
-            if (newHistory.length >= 50) newHistory.shift();
-            newHistory.push(newElements);
-            return newHistory;
-        });
-        setHistoryIndex(prev => Math.min(prev + 1, 49));
+
+        if (historyManagerRef.current) {
+            // RUST PATH: Push compressed string to WASM memory
+            historyManagerRef.current.push_state(JSON.stringify(newElements));
+        } else {
+            // FALLBACK JS PATH
+            setHistoryStack(prev => {
+                const newHistory = prev.slice(0, historyIndex + 1);
+                if (newHistory.length >= 50) newHistory.shift();
+                newHistory.push(newElements);
+                return newHistory;
+            });
+            setHistoryIndex(prev => Math.min(prev + 1, 49));
+        }
     }, [historyIndex]);
 
     const setDevice = (newDevice: DeviceType) => {
@@ -160,30 +188,18 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     const runAction = useCallback((act: ActionType) => {
-        // Handle new Interaction Builder types
         if ('action' in act) {
-            if (act.action === 'link' && act.value) {
-                window.open(act.value, '_blank');
-            } else if (act.action === 'scroll' && act.value) {
-                document.getElementById(act.value)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+            if (act.action === 'link' && act.value) window.open(act.value, '_blank');
+            else if (act.action === 'scroll' && act.value) document.getElementById(act.value)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             return;
         }
-
-        // Handle legacy types
         if (act.type === 'NAVIGATE') {
             if (act.payload.startsWith('http')) { window.open(act.payload, '_blank'); return; }
             if (elements[act.payload]) { setActivePageId(act.payload); setPan({ x: 0, y: 0 }); }
-        } else if (act.type === 'SCROLL_TO') {
-            document.getElementById(act.payload)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else if (act.type === 'TOGGLE_VISIBILITY') {
+        } else if (act.type === 'SCROLL_TO') document.getElementById(act.payload)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        else if (act.type === 'TOGGLE_VISIBILITY') {
             const targetId = act.payload;
-            if (elements[targetId]) {
-                setElements(prev => ({
-                    ...prev,
-                    [targetId]: { ...prev[targetId], hidden: !prev[targetId].hidden }
-                }));
-            }
+            if (elements[targetId]) setElements(prev => ({ ...prev, [targetId]: { ...prev[targetId], hidden: !prev[targetId].hidden } }));
         }
     }, [elements, setActivePageId]);
 
@@ -199,9 +215,7 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const newElements = { ...elements };
         newElements[pageId] = { id: pageId, type: 'page', name: name, children: [canvasId], props: { layoutMode: 'canvas', className: 'w-full h-full relative', style: { width: '100%', height: '100%' } } };
         newElements[canvasId] = { id: canvasId, type: 'canvas', name: 'Artboard 1', children: [], props: { className: 'bg-white shadow-xl relative overflow-hidden', style: { position: 'absolute', left: '100px', top: '100px', width: '1440px', height: '1024px' } } };
-        if (newElements['application-root']) {
-            newElements['application-root'] = { ...newElements['application-root'], children: [...(newElements['application-root'].children || []), pageId] };
-        }
+        if (newElements['application-root']) newElements['application-root'] = { ...newElements['application-root'], children: [...(newElements['application-root'].children || []), pageId] };
         updateProject(newElements);
         setActivePageId(pageId);
     };
@@ -209,34 +223,84 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const deletePage = (id: string) => {
         if (id === 'page-home') return;
         const newElements = { ...elements };
-        if (newElements['application-root']) {
-            newElements['application-root'] = { ...newElements['application-root'], children: newElements['application-root'].children?.filter(cid => cid !== id) };
-        }
+        if (newElements['application-root']) newElements['application-root'] = { ...newElements['application-root'], children: newElements['application-root'].children?.filter(cid => cid !== id) };
         delete newElements[id];
         updateProject(newElements);
         setActivePageId('page-home');
     };
 
+    // --- HYBRID UNDO/REDO (RUST + TS) ---
     const undo = useCallback(() => {
-        if (historyIndex > 0) { setHistoryIndex(p => p - 1); setElements(historyStack[historyIndex - 1]); }
+        if (historyManagerRef.current && historyManagerRef.current.can_undo()) {
+            // RUST PATH: Retrieve compressed state from WASM memory
+            const prevStateJson = historyManagerRef.current.undo();
+            if (prevStateJson) {
+                const prevState = JSON.parse(prevStateJson);
+                setElements(prevState);
+            }
+        } else if (historyIndex > 0) {
+            // FALLBACK JS PATH
+            setHistoryIndex(p => p - 1);
+            setElements(historyStack[historyIndex - 1]);
+        }
     }, [historyIndex, historyStack]);
 
     const redo = useCallback(() => {
-        if (historyIndex < historyStack.length - 1) { setHistoryIndex(p => p + 1); setElements(historyStack[historyIndex + 1]); }
+        if (historyManagerRef.current && historyManagerRef.current.can_redo()) {
+            // RUST PATH
+            const nextStateJson = historyManagerRef.current.redo();
+            if (nextStateJson) {
+                const nextState = JSON.parse(nextStateJson);
+                setElements(nextState);
+            }
+        } else if (historyIndex < historyStack.length - 1) {
+            // FALLBACK JS PATH
+            setHistoryIndex(p => p + 1);
+            setElements(historyStack[historyIndex + 1]);
+        }
     }, [historyIndex, historyStack]);
 
+    // --- HYBRID DELETE (RUST + TS) ---
     const deleteElement = useCallback((id: string) => {
         if (['application-root', 'page-home', 'main-canvas'].includes(id)) return;
+
+        if (wasmModule) {
+            try {
+                const newElements = wasmModule.delete_node(elements, id);
+                updateProject(newElements);
+                setSelectedId(null);
+                return;
+            } catch (e) {
+                console.error("Rust delete failed, falling back to JS", e);
+            }
+        }
+
+        // TS FALLBACK PATH
         const newElements = JSON.parse(JSON.stringify(elements));
         Object.keys(newElements).forEach(key => {
-            if (newElements[key].children) newElements[key].children = newElements[key].children.filter((cid: string) => cid !== id);
+            if (newElements[key].children) {
+                newElements[key].children = newElements[key].children.filter((cid: string) => cid !== id);
+            }
         });
         delete newElements[id];
         updateProject(newElements);
         setSelectedId(null);
     }, [elements, updateProject]);
 
-    // --- PRO SNAPPING ENGINE ---
+    // --- HYBRID TEMPLATE INSTANTIATION (RUST + TS) ---
+    const instantiateTemplate = useCallback((rootId: string, nodes: VectraProject): { newNodes: VectraProject; rootId: string } => {
+        if (wasmModule) {
+            try {
+                const result = wasmModule.instantiate_template(nodes, rootId);
+                return { newNodes: result.new_nodes, rootId: result.root_id };
+            } catch (e) {
+                console.error("Rust template failed, falling back to JS", e);
+            }
+        }
+        return instantiateTemplateTS(rootId, nodes);
+    }, []);
+
+    // --- HYBRID INTERACTION ENGINE (RUST INTEGRATED) ---
     const handleInteractionMove = useCallback((e: PointerEvent) => {
         if (!interaction) return;
         const { type, itemId, startX, startY, startRect, handle } = interaction;
@@ -247,109 +311,90 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const deltaY = (e.clientY - currentStartY) / zoom;
         const THRESHOLD = 5;
 
-        const newRect = startRect ? { ...startRect } : { left: 0, top: 0, width: 0, height: 0 };
+        let newRect = startRect ? { ...startRect } : { left: 0, top: 0, width: 0, height: 0 };
         let newGuides: Guide[] = [];
 
-        const parentId = Object.keys(elements).find(k => elements[k].children?.includes(itemId));
-        const parent = parentId ? elements[parentId] : null;
-        const siblings = parentId ? elements[parentId].children || [] : [];
-        const snapTargets = siblings
-            .filter(id => id !== itemId)
-            .map(id => elements[id])
-            .filter(el => el && !el.hidden && el.props.style?.position === 'absolute');
-
-        if (parent && (parent.type === 'canvas' || parent.type === 'webpage' || parent.type === 'container')) {
-            const pWidth = parseFloat(String(parent.props.style?.width || '0'));
-            const pHeight = parseFloat(String(parent.props.style?.height || '0'));
-            snapTargets.push({
-                id: parentId!, type: parent.type, name: 'Parent',
-                props: { style: { left: 0, top: 0, width: pWidth, height: pHeight, position: 'absolute' } }
-            } as any);
-        }
-
         if (type === 'MOVE') {
-            let proposedLeft = (startRect?.left || 0) + deltaX;
-            let proposedTop = (startRect?.top || 0) + deltaY;
-            const w = startRect?.width || 0;
-            const h = startRect?.height || 0;
-            let snappedX = false, snappedY = false;
+            const parentId = Object.keys(elements).find(k => elements[k].children?.includes(itemId));
+            const parent = parentId ? elements[parentId] : null;
+            const siblings = parentId ? elements[parentId].children || [] : [];
 
-            const myX = [
-                { val: proposedLeft, snapType: 'start' },
-                { val: proposedLeft + w / 2, snapType: 'center' },
-                { val: proposedLeft + w, snapType: 'end' }
-            ];
+            const candidates = siblings
+                .filter(id => id !== itemId)
+                .map(id => {
+                    const el = elements[id];
+                    return {
+                        id: id,
+                        x: parseFloat(String(el.props.style?.left || 0)),
+                        y: parseFloat(String(el.props.style?.top || 0)),
+                        w: parseFloat(String(el.props.style?.width || 0)),
+                        h: parseFloat(String(el.props.style?.height || 0)),
+                    };
+                });
 
-            for (const target of snapTargets) {
-                if (snappedX) break;
-                const tX = parseFloat(String(target.props.style?.left || 0));
-                const tW = parseFloat(String(target.props.style?.width || 0));
-                const tY = parseFloat(String(target.props.style?.top || 0));
-                const tH = parseFloat(String(target.props.style?.height || 0));
-
-                const targetPoints = [
-                    { val: tX, snapType: 'start' },
-                    { val: tX + tW / 2, snapType: 'center' },
-                    { val: tX + tW, snapType: 'end' }
-                ];
-
-                for (const mp of myX) {
-                    if (snappedX) break;
-                    for (const tp of targetPoints) {
-                        if (Math.abs(mp.val - tp.val) < THRESHOLD) {
-                            proposedLeft += (tp.val - mp.val);
-                            snappedX = true;
-                            const minY = Math.min(proposedTop, tY);
-                            const maxY = Math.max(proposedTop + h, tY + tH);
-                            newGuides.push({ orientation: 'vertical', pos: tp.val, start: minY, end: maxY, type: 'align' });
-                            break;
-                        }
-                    }
-                }
+            if (parent && (parent.type === 'canvas' || parent.type === 'webpage')) {
+                candidates.push({
+                    id: 'parent',
+                    x: 0, y: 0,
+                    w: parseFloat(String(parent.props.style?.width || 0)),
+                    h: parseFloat(String(parent.props.style?.height || 0))
+                });
             }
 
-            const myY = [
-                { val: proposedTop, snapType: 'start' },
-                { val: proposedTop + h / 2, snapType: 'center' },
-                { val: proposedTop + h, snapType: 'end' }
-            ];
+            const targetRect = {
+                id: itemId,
+                x: startRect?.left || 0,
+                y: startRect?.top || 0,
+                w: startRect?.width || 0,
+                h: startRect?.height || 0
+            };
 
-            for (const target of snapTargets) {
-                if (snappedY) break;
-                const tY = parseFloat(String(target.props.style?.top || 0));
-                const tH = parseFloat(String(target.props.style?.height || 0));
-                const tX = parseFloat(String(target.props.style?.left || 0));
-                const tW = parseFloat(String(target.props.style?.width || 0));
-
-                const targetPoints = [
-                    { val: tY, snapType: 'start' },
-                    { val: tY + tH / 2, snapType: 'center' },
-                    { val: tY + tH, snapType: 'end' }
-                ];
-
-                for (const mp of myY) {
-                    if (snappedY) break;
-                    for (const tp of targetPoints) {
-                        if (Math.abs(mp.val - tp.val) < THRESHOLD) {
-                            proposedTop += (tp.val - mp.val);
-                            snappedY = true;
-                            const minX = Math.min(proposedLeft, tX);
-                            const maxX = Math.max(proposedLeft + w, tX + tW);
-                            newGuides.push({ orientation: 'horizontal', pos: tp.val, start: minX, end: maxX, type: 'align' });
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (parent && (parent.type === 'canvas' || parent.type === 'webpage' || parent.type === 'container')) {
-                const pW = parseFloat(String(parent.props.style?.width || 0));
-                const pH = parseFloat(String(parent.props.style?.height || 0));
-                newRect.left = Math.max(0, Math.min(snappedX ? proposedLeft : Math.round(proposedLeft), pW - w));
-                newRect.top = Math.max(0, Math.min(snappedY ? proposedTop : Math.round(proposedTop), pH - h));
+            if (wasmModule) {
+                const result = wasmModule.calculate_snapping(targetRect, candidates, deltaX, deltaY, THRESHOLD);
+                newRect.left = result.x;
+                newRect.top = result.y;
+                newGuides = result.guides;
             } else {
-                newRect.left = snappedX ? proposedLeft : Math.round(proposedLeft);
-                newRect.top = snappedY ? proposedTop : Math.round(proposedTop);
+                let proposedLeft = targetRect.x + deltaX;
+                let proposedTop = targetRect.y + deltaY;
+                let snappedX = false, snappedY = false;
+
+                for (const sib of candidates) {
+                    if (!snappedX) {
+                        const xPoints = [sib.x, sib.x + sib.w / 2, sib.x + sib.w];
+                        const myXPoints = [proposedLeft, proposedLeft + targetRect.w / 2, proposedLeft + targetRect.w];
+                        for (const my of myXPoints) {
+                            for (const s of xPoints) {
+                                if (Math.abs(my - s) < THRESHOLD) {
+                                    proposedLeft += s - my;
+                                    snappedX = true;
+                                    newGuides.push({ orientation: 'vertical', pos: s, start: Math.min(proposedTop, sib.y), end: Math.max(proposedTop + targetRect.h, sib.y + sib.h), type: 'align' });
+                                    break;
+                                }
+                            }
+                            if (snappedX) break;
+                        }
+                    }
+                    if (!snappedY) {
+                        const yPoints = [sib.y, sib.y + sib.h / 2, sib.y + sib.h];
+                        const myYPoints = [proposedTop, proposedTop + targetRect.h / 2, proposedTop + targetRect.h];
+                        for (const my of myYPoints) {
+                            for (const s of yPoints) {
+                                if (Math.abs(my - s) < THRESHOLD) {
+                                    proposedTop += s - my;
+                                    snappedY = true;
+                                    newGuides.push({ orientation: 'horizontal', pos: s, start: Math.min(proposedLeft, sib.x), end: Math.max(proposedLeft + targetRect.w, sib.x + sib.w), type: 'align' });
+                                    break;
+                                }
+                            }
+                            if (snappedY) break;
+                        }
+                    }
+                    if (snappedX && snappedY) break;
+                }
+
+                newRect.left = proposedLeft;
+                newRect.top = proposedTop;
             }
 
         } else if (type === 'RESIZE' && handle && startRect) {
@@ -364,19 +409,18 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setElements(prev => {
             const currentElement = prev[itemId];
             if (!currentElement) return prev;
-            const currentStyle = currentElement.props.style || {};
-            const currentClasses = currentElement.props.className || '';
 
             const nextStyle: React.CSSProperties = {
-                ...currentStyle,
+                ...currentElement.props.style,
                 position: 'absolute',
                 left: `${newRect.left}px`,
                 top: `${newRect.top}px`
             };
 
             if (type === 'RESIZE') {
-                if (!currentClasses.includes('w-full') && !currentClasses.includes('w-fit')) nextStyle.width = `${newRect.width}px`;
-                if (!currentClasses.includes('h-full') && !currentClasses.includes('h-fit')) nextStyle.height = `${newRect.height}px`;
+                const cls = currentElement.props.className || '';
+                if (!cls.includes('w-full')) nextStyle.width = `${newRect.width}px`;
+                if (!cls.includes('h-full')) nextStyle.height = `${newRect.height}px`;
             }
 
             return { ...prev, [itemId]: { ...prev[itemId], props: { ...prev[itemId].props, style: nextStyle } } };
@@ -392,11 +436,10 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             device, setDevice, dragData, setDragData, zoom, setZoom, pan, setPan, isPanning, setIsPanning,
             interaction, setInteraction, handleInteractionMove, guides, assets, addAsset,
             globalStyles, setGlobalStyles, addPage, deletePage, updateProject, deleteElement,
-            history: { undo, redo }, runAction,
-            viewMode, setViewMode,
-            isInsertDrawerOpen, toggleInsertDrawer,
-            activePanel, setActivePanel, togglePanel,
-            componentRegistry, registerComponent
+            history: { undo, redo }, runAction, viewMode, setViewMode,
+            isInsertDrawerOpen, toggleInsertDrawer, activePanel, setActivePanel, togglePanel,
+            componentRegistry, registerComponent, instantiateTemplate,
+            recentComponents, addRecentComponent
         }}>
             {children}
         </EditorContext.Provider>

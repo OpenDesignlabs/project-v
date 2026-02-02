@@ -16,7 +16,21 @@ export const Header = () => {
     const [copied, setCopied] = useState(false);
 
     const handleGenerate = () => {
-        const generated = generateCode(elements, activePageId);
+        // HYBRID GENERATION: Try Rust first, then fallback to TS
+        let generated = "";
+
+        if ((window as any).vectraWasm) {
+            try {
+                generated = (window as any).vectraWasm.generate_react_code(elements, activePageId);
+                console.log("Code generated using Rust Engine");
+            } catch (e) {
+                console.warn("Rust export failed, falling back to TS", e);
+                generated = generateCode(elements, activePageId);
+            }
+        } else {
+            generated = generateCode(elements, activePageId);
+        }
+
         setCode(generated);
         setShowCode(true);
         setCopied(false);

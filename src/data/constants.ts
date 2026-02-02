@@ -5,11 +5,10 @@ import {
 } from 'lucide-react';
 import type { ComponentConfig, VectraProject } from '../types';
 
-// Storage key for localStorage - bump this to force new data
-export const STORAGE_KEY = 'vectra_design_v67';
+export const STORAGE_KEY = 'vectra_design_v68'; // Bump version to force update
 
 export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
-    // --- BASIC ---
+    // --- BASIC (No layoutMode needed, usually leaf nodes) ---
     text: {
         icon: Type, label: 'Text', category: 'basic',
         defaultProps: { className: 'text-slate-800 text-base' }, defaultContent: 'Type something...'
@@ -27,14 +26,20 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
         defaultProps: { className: 'text-blue-600 hover:underline cursor-pointer' }, defaultContent: 'Read more'
     },
 
-    // --- LAYOUT ---
+    // --- LAYOUT (CRITICAL FIX: Added layoutMode) ---
     container: {
         icon: Box, label: 'Container', category: 'layout',
-        defaultProps: { className: 'p-6 border border-dashed border-slate-300 rounded bg-slate-50/50 min-h-[100px] flex flex-col gap-4' }
+        defaultProps: {
+            className: 'p-6 border border-dashed border-slate-300 rounded bg-slate-50/50 min-h-[100px] flex flex-col gap-4',
+            layoutMode: 'flex' // <--- ENABLE DROPPING
+        }
     },
     card: {
         icon: CreditCard, label: 'Card', category: 'layout',
-        defaultProps: { className: 'p-6 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col gap-4 hover:shadow-md transition-shadow' }
+        defaultProps: {
+            className: 'p-6 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col gap-4 hover:shadow-md transition-shadow',
+            layoutMode: 'flex' // <--- ENABLE DROPPING
+        }
     },
     stack_v: {
         icon: List, label: 'Vertical Stack', category: 'layout',
@@ -46,11 +51,17 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
     },
     grid: {
         icon: Grid, label: 'Grid', category: 'layout',
-        defaultProps: { className: 'grid grid-cols-2 gap-4 p-4 w-full' }
+        defaultProps: {
+            className: 'grid grid-cols-2 gap-4 p-4 w-full',
+            layoutMode: 'grid'
+        }
     },
     section: {
         icon: Layout, label: 'Section', category: 'layout',
-        defaultProps: { className: 'w-full py-16 px-8 bg-white' }
+        defaultProps: {
+            className: 'w-full py-16 px-8 bg-white flex flex-col gap-4',
+            layoutMode: 'flex' // <--- ENABLE DROPPING
+        }
     },
 
     // --- FORMS ---
@@ -94,10 +105,28 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
     hero_geometric: { icon: Sparkles, label: 'Geometric Hero', category: 'sections', defaultProps: {}, defaultContent: '' },
     feature_hover: { icon: Zap, label: 'Hover Features', category: 'sections', defaultProps: { className: 'w-full relative bg-white', layoutMode: 'canvas' }, defaultContent: '' },
 
-    // --- SECTIONS ---
-    hero: { icon: AlignCenter, label: 'Hero Section', category: 'sections', defaultProps: { className: 'w-full py-20 bg-slate-900 text-center flex flex-col items-center gap-6' } },
-    pricing: { icon: CreditCard, label: 'Pricing Card', category: 'sections', defaultProps: { className: 'p-8 border border-slate-200 rounded-2xl shadow-sm hover:shadow-xl transition-all bg-white flex flex-col gap-4 max-w-sm' } },
-    navbar: { icon: Globe, label: 'Navbar', category: 'sections', defaultProps: { className: 'w-full px-8 py-4 flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-50' } },
+    // --- PRE-MADE SECTIONS (Fixed: Added layoutMode) ---
+    hero: {
+        icon: AlignCenter, label: 'Hero Section', category: 'sections',
+        defaultProps: {
+            className: 'w-full py-20 bg-slate-900 text-center flex flex-col items-center gap-6',
+            layoutMode: 'flex' // <--- FIX
+        }
+    },
+    pricing: {
+        icon: CreditCard, label: 'Pricing Card', category: 'sections',
+        defaultProps: {
+            className: 'p-8 border border-slate-200 rounded-2xl shadow-sm hover:shadow-xl transition-all bg-white flex flex-col gap-4 max-w-sm',
+            layoutMode: 'flex' // <--- FIX
+        }
+    },
+    navbar: {
+        icon: Globe, label: 'Navbar', category: 'sections',
+        defaultProps: {
+            className: 'w-full px-8 py-4 flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-50',
+            layoutMode: 'flex' // <--- FIX
+        }
+    },
 
     // --- ARTBOARDS ---
     webpage: {
@@ -118,12 +147,9 @@ export const COMPONENT_TYPES: Record<string, ComponentConfig> = {
     },
 };
 
-// INITIAL DATA (The Redesign Layout)
 export const INITIAL_DATA: VectraProject = {
     'application-root': { id: 'application-root', type: 'app', name: 'App', children: ['page-home'], props: {} },
     'page-home': { id: 'page-home', type: 'page', name: 'Home', children: ['frame-desktop', 'frame-mobile'], props: { layoutMode: 'canvas' } },
-
-    // DESKTOP FRAME
     'frame-desktop': {
         id: 'frame-desktop', type: 'webpage', name: 'Desktop', children: [],
         props: {
@@ -132,8 +158,6 @@ export const INITIAL_DATA: VectraProject = {
             style: { position: 'absolute', left: '100px', top: '100px', width: '1200px', height: '1200px', backgroundColor: '#f2f0ef' }
         }
     },
-
-    // MOBILE FRAME
     'frame-mobile': {
         id: 'frame-mobile', type: 'canvas', name: 'Mobile', children: [],
         props: {

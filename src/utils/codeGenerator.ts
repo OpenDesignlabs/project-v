@@ -111,3 +111,4 @@ export default function ${componentName}() {
 ${generateNode(exportRootId, 2, null)}  );
 }`;
 };
+
