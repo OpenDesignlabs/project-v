@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { RenderNode } from './RenderNode';
-import { COMPONENT_TYPES } from '../data/constants';
+import { ContainerPreview } from './ContainerPreview';
 import { TEMPLATES } from '../data/templates';
 
 export const Canvas = () => {
@@ -10,7 +10,7 @@ export const Canvas = () => {
         previewMode, setSelectedId, isPanning, setIsPanning,
         interaction, setInteraction, handleInteractionMove,
         guides, dragData, setDragData, elements, updateProject,
-        instantiateTemplate
+        instantiateTemplate, componentRegistry // <--- USE REGISTRY
     } = useEditor();
 
     const canvasRef = useRef<HTMLDivElement>(null);
@@ -79,7 +79,7 @@ export const Canvas = () => {
             w = parseFloat(String(newNodes[newRootId].props.style?.width || 0));
             h = parseFloat(String(newNodes[newRootId].props.style?.height || 0));
         } else if (dragData.type === 'NEW') {
-            const conf = COMPONENT_TYPES[dragData.payload];
+            const conf = componentRegistry[dragData.payload]; // FIX: Use registry
             if (!conf) return;
             newRootId = `el-${Date.now()}`;
             w = dragData.payload === 'webpage' ? 1200 : 200;
@@ -107,19 +107,6 @@ export const Canvas = () => {
         setSelectedId(newRootId);
     };
 
-    // --- 3. PREVIEW MODE RENDER (Real Website Look) ---
-    if (previewMode) {
-        return (
-            <div className="flex-1 bg-white overflow-y-auto h-full w-full">
-                <div className="min-h-screen w-full flex justify-center bg-white py-10">
-                    {/* FIX: The 'key' prop here forces React to Remount the tree when Preview toggles, triggering animations. */}
-                    <RenderNode elementId={activePageId} key={`preview-${activePageId}`} />
-                </div>
-            </div>
-        );
-    }
-
-    // --- 4. EDITOR MODE RENDER ---
     return (
         <div
             ref={canvasRef}
@@ -129,24 +116,33 @@ export const Canvas = () => {
             onDrop={handleGlobalDrop}
             onDragOver={(e) => e.preventDefault()}
         >
-            <div
-                style={{
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                    transformOrigin: '0 0',
-                    width: '100%', height: '100%'
-                }}
-            >
-                {/* FIX: Distinct key for Editor Mode */}
-                <RenderNode elementId={activePageId} key={`editor-${activePageId}`} />
-                {!previewMode && guides.map((g, i) => (
-                    <div key={i} className="absolute bg-red-500 z-[9999]" style={{
-                        left: g.orientation === 'vertical' ? g.pos : g.start,
-                        top: g.orientation === 'vertical' ? g.start : g.pos,
-                        width: g.orientation === 'vertical' ? '1px' : (g.end - g.start),
-                        height: g.orientation === 'vertical' ? (g.end - g.start) : '1px'
-                    }} />
-                ))}
-            </div>
+            {/* CONTENT LAYER */}
+            {previewMode ? (
+                // FULL SCREEN OVERLAY
+                <div className="absolute inset-0 z-[100] bg-black">
+                    <ContainerPreview />
+                </div>
+            ) : (
+                <div
+                    style={{
+                        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                        transformOrigin: '0 0',
+                        width: '100%', height: '100%'
+                    }}
+                >
+                    <RenderNode elementId={activePageId} key={`editor-${activePageId}`} />
+                    {guides.map((g, i) => (
+                        <div key={i} className="absolute bg-red-500 z-[9999]" style={{
+                            left: g.orientation === 'vertical' ? g.pos : g.start,
+                            top: g.orientation === 'vertical' ? g.start : g.pos,
+                            width: g.orientation === 'vertical' ? '1px' : (g.end - g.start),
+                            height: g.orientation === 'vertical' ? (g.end - g.start) : '1px'
+                        }} />
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
+
+

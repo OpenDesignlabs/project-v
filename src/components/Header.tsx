@@ -5,12 +5,16 @@ import { INITIAL_DATA, STORAGE_KEY } from '../data/constants';
 import {
     Play, Undo, Redo, Code,
     Check, X, Copy, Trash2,
-    Layers, Palette, RotateCcw
+    Layers, Palette, RotateCcw, Home
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export const Header = () => {
-    const { history, previewMode, setPreviewMode, elements, setElements, activePageId, setSelectedId, viewMode, setViewMode, selectedId, deleteElement } = useEditor();
+    const {
+        history, previewMode, setPreviewMode, elements, setElements,
+        activePageId, setSelectedId, viewMode, setViewMode, selectedId,
+        deleteElement, exitProject
+    } = useEditor();
     const [showCode, setShowCode] = useState(false);
     const [code, setCode] = useState('');
     const [copied, setCopied] = useState(false);
@@ -61,6 +65,15 @@ export const Header = () => {
 
                 {/* LEFT: Branding & Reset */}
                 <div className="flex items-center gap-4">
+                    {/* NEW HOME BUTTON */}
+                    <button
+                        onClick={exitProject}
+                        className="p-2 hover:bg-[#3e3e42] rounded text-[#858585] hover:text-white transition-colors"
+                        title="Back to Dashboard"
+                    >
+                        <Home size={16} />
+                    </button>
+
                     <div className="flex items-center gap-2">
                         <svg width="32" height="32" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <rect x="0" y="0" width="40" height="40" rx="10" fill="#a5b4fc" />

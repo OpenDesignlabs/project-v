@@ -47,18 +47,20 @@ export const Resizer: React.FC<ResizerProps> = ({ elementId }) => {
         });
     };
 
-    // Visual Style for Handles
-    const handleStyle = "absolute w-2.5 h-2.5 bg-white border border-blue-600 rounded-full z-50 shadow-[0_0_2px_rgba(0,0,0,0.2)] hover:scale-125 transition-transform hover:bg-blue-50";
+    // VISUAL STYLE FOR HANDLES
+    // Increased size from w-2.5 (10px) to w-4 (16px) for better clickability
+    const handleStyle = "absolute w-4 h-4 bg-white border-2 border-blue-600 rounded-full z-50 shadow-md hover:scale-125 transition-transform hover:bg-blue-50";
 
+    // Adjusted offsets from -1.5 (6px) to -2 (8px) to keep the larger handles centered
     return (
         <>
             {/* --- CORNERS (Only if BOTH dimensions are free) --- */}
             {!isWidthLocked && !isHeightLocked && (
                 <>
-                    <div className={`${handleStyle} -bottom-1.5 -right-1.5 cursor-nwse-resize`} onPointerDown={(e) => startResize(e, 'se')} />
-                    <div className={`${handleStyle} -bottom-1.5 -left-1.5 cursor-nesw-resize`} onPointerDown={(e) => startResize(e, 'sw')} />
-                    <div className={`${handleStyle} -top-1.5 -right-1.5 cursor-nesw-resize`} onPointerDown={(e) => startResize(e, 'ne')} />
-                    <div className={`${handleStyle} -top-1.5 -left-1.5 cursor-nwse-resize`} onPointerDown={(e) => startResize(e, 'nw')} />
+                    <div className={`${handleStyle} -bottom-2 -right-2 cursor-nwse-resize`} onPointerDown={(e) => startResize(e, 'se')} />
+                    <div className={`${handleStyle} -bottom-2 -left-2 cursor-nesw-resize`} onPointerDown={(e) => startResize(e, 'sw')} />
+                    <div className={`${handleStyle} -top-2 -right-2 cursor-nesw-resize`} onPointerDown={(e) => startResize(e, 'ne')} />
+                    <div className={`${handleStyle} -top-2 -left-2 cursor-nwse-resize`} onPointerDown={(e) => startResize(e, 'nw')} />
                 </>
             )}
 
@@ -67,16 +69,16 @@ export const Resizer: React.FC<ResizerProps> = ({ elementId }) => {
             {/* Width Handles (Only if width is NOT locked) */}
             {!isWidthLocked && (
                 <>
-                    <div className={`${handleStyle} top-1/2 -right-1.5 -translate-y-1/2 cursor-ew-resize`} onPointerDown={(e) => startResize(e, 'e')} />
-                    <div className={`${handleStyle} top-1/2 -left-1.5 -translate-y-1/2 cursor-ew-resize`} onPointerDown={(e) => startResize(e, 'w')} />
+                    <div className={`${handleStyle} top-1/2 -right-2 -translate-y-1/2 cursor-ew-resize`} onPointerDown={(e) => startResize(e, 'e')} />
+                    <div className={`${handleStyle} top-1/2 -left-2 -translate-y-1/2 cursor-ew-resize`} onPointerDown={(e) => startResize(e, 'w')} />
                 </>
             )}
 
             {/* Height Handles (Only if height is NOT locked) */}
             {!isHeightLocked && (
                 <>
-                    <div className={`${handleStyle} -bottom-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize`} onPointerDown={(e) => startResize(e, 's')} />
-                    <div className={`${handleStyle} -top-1.5 left-1/2 -translate-x-1/2 cursor-n-resize`} onPointerDown={(e) => startResize(e, 'n')} />
+                    <div className={`${handleStyle} -bottom-2 left-1/2 -translate-x-1/2 cursor-ns-resize`} onPointerDown={(e) => startResize(e, 's')} />
+                    <div className={`${handleStyle} -top-2 left-1/2 -translate-x-1/2 cursor-n-resize`} onPointerDown={(e) => startResize(e, 'n')} />
                 </>
             )}
         </>

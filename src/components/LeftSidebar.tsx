@@ -3,7 +3,7 @@ import { useEditor } from '../context/EditorContext';
 import { TEMPLATES } from '../data/templates';
 import {
     Plus, Layers, File, Image as ImageIcon,
-    Search, X, Type, Layout, FormInput, CreditCard, Puzzle, Upload,
+    Search, X, Type, Layout, FormInput, Puzzle, Upload,
     ChevronRight, Loader2, Clock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -11,7 +11,7 @@ import { processImportedCode, generateComponentId } from '../utils/importHelpers
 
 const LayersPanel = lazy(() => import('./panels/LayersPanel').then(m => ({ default: m.LayersPanel })));
 
-type DrawerTab = 'recent' | 'basic' | 'layout' | 'forms' | 'media' | 'sections' | 'templates';
+type DrawerTab = 'recent' | 'basic' | 'layout' | 'forms' | 'media' | 'templates';
 
 const CATEGORIES: { id: DrawerTab; label: string; icon: any }[] = [
     { id: 'recent', label: 'Recent', icon: Clock },
@@ -19,7 +19,6 @@ const CATEGORIES: { id: DrawerTab; label: string; icon: any }[] = [
     { id: 'layout', label: 'Layout', icon: Layout },
     { id: 'forms', label: 'Forms', icon: FormInput },
     { id: 'media', label: 'Media', icon: ImageIcon },
-    { id: 'sections', label: 'Sections', icon: CreditCard },
     { id: 'templates', label: 'Templates', icon: Puzzle },
 ];
 
@@ -43,6 +42,8 @@ export const LeftSidebar = () => {
     const [activeCat, setActiveCat] = useState<DrawerTab>('basic');
     const [search, setSearch] = useState('');
     const [assetSearch, setAssetSearch] = useState('');
+    const [unsplashImages, setUnsplashImages] = useState<any[]>([]);
+    const [isLoadingAssets, setIsLoadingAssets] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     if (previewMode) return null;
@@ -57,8 +58,9 @@ export const LeftSidebar = () => {
         : activeCat !== 'templates'
             ? Object.entries(componentRegistry)
                 .filter(([_type, config]) => {
-                    const matchesSearch = config.label.toLowerCase().includes(search.toLowerCase());
-                    const matchesCategory = search ? true : config.category === activeCat;
+                    const configAny = config as any;
+                    const matchesSearch = configAny.label.toLowerCase().includes(search.toLowerCase());
+                    const matchesCategory = search ? true : configAny.category === activeCat;
                     return matchesSearch && matchesCategory;
                 })
             : [];
@@ -66,12 +68,47 @@ export const LeftSidebar = () => {
     const filteredTemplates = activeCat === 'templates' || search
         ? Object.entries(TEMPLATES)
             .filter(([, tpl]) => {
+                const tplAny = tpl as any;
                 if (!search) return activeCat === 'templates';
-                return tpl.name.toLowerCase().includes(search.toLowerCase());
+                return tplAny.name.toLowerCase().includes(search.toLowerCase());
             })
         : [];
 
-    const filteredAssets = STOCK_PHOTOS.filter(p => p.alt.toLowerCase().includes(assetSearch.toLowerCase()));
+    const searchUnsplash = async (query: string) => {
+        if (!query.trim()) {
+            setUnsplashImages([]);
+            return;
+        }
+
+        setIsLoadingAssets(true);
+        try {
+            // Use key from .env (Vite)
+            const ACCESS_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY || 'YOUR_UNSPLASH_ACCESS_KEY';
+
+            const response = await fetch(
+                `https://api.unsplash.com/search/photos?page=1&query=${query}&per_page=20&client_id=${ACCESS_KEY}`
+            );
+
+            const data = await response.json();
+
+            if (data.results) {
+                const mappedImages = data.results.map((img: any) => ({
+                    id: img.id,
+                    url: img.urls.small,
+                    alt: img.alt_description || 'Unsplash Image'
+                }));
+                setUnsplashImages(mappedImages);
+            }
+        } catch (error) {
+            console.error("Unsplash API Error:", error);
+        } finally {
+            setIsLoadingAssets(false);
+        }
+    };
+
+    const displayAssets = unsplashImages.length > 0
+        ? unsplashImages
+        : STOCK_PHOTOS.filter(p => p.alt.toLowerCase().includes(assetSearch.toLowerCase()));
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -148,7 +185,11 @@ export const LeftSidebar = () => {
                                         <div
                                             key={type}
                                             draggable
-                                            onDragStart={() => {
+                                            onDragStart={(e) => {
+                                                // --- FIX: ENABLE NATIVE DRAG ---
+                                                e.dataTransfer.setData('text/plain', type);
+                                                e.dataTransfer.effectAllowed = 'copy';
+
                                                 setDragData({ type: 'NEW', payload: type });
                                                 addRecentComponent(type);
                                             }}
@@ -163,38 +204,67 @@ export const LeftSidebar = () => {
                                 </div>
                             )}
 
-                            {/* Templates List with Tooltip */}
-                            {filteredTemplates.length > 0 && (
-                                <div className="flex flex-col gap-3">
-                                    {filteredTemplates.map(([key, tpl]) => (
-                                        <div key={key} className="group/item relative">
-                                            <div
-                                                draggable
-                                                onDragStart={() => setDragData({ type: 'TEMPLATE', payload: key })}
-                                                className="flex items-center gap-3 p-3 bg-[#2d2d2d] border border-[#3e3e42] rounded-lg cursor-grab hover:border-[#007acc] hover:bg-[#323236]"
-                                            >
-                                                <div className="w-10 h-10 rounded bg-[#38383e] flex items-center justify-center text-[#cccccc]">
-                                                    {tpl.icon && <tpl.icon size={18} />}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-sm font-semibold text-[#cccccc]">{tpl.name}</div>
-                                                    <div className="text-[10px] text-[#888888]">{tpl.category}</div>
-                                                </div>
-                                                <ChevronRight size={16} className="text-[#666] opacity-0 group-hover/item:opacity-100" />
-                                            </div>
+                            {/* Grouped Templates (Sub-sections) */}
+                            {activeCat === 'templates' && (() => {
+                                const templateGroups = filteredTemplates.reduce((acc, [key, tpl]) => {
+                                    const cat = (tpl as any).category || 'Other';
+                                    if (!acc[cat]) acc[cat] = [];
+                                    acc[cat].push({ key, ...tpl } as any);
+                                    return acc;
+                                }, {} as Record<string, any[]>);
 
-                                            {/* --- PREVIEW TOOLTIP --- */}
-                                            <div className="absolute left-[105%] top-0 w-[240px] bg-[#252526] border border-[#3f3f46] rounded-xl shadow-2xl p-3 z-50 opacity-0 group-hover/item:opacity-100 pointer-events-none transition-opacity duration-200">
-                                                <div className="w-full aspect-video bg-[#1e1e1e] rounded-md mb-2 flex items-center justify-center text-[#444] border border-[#333]">
-                                                    {tpl.icon && <tpl.icon size={48} strokeWidth={1} />}
+                                const sortedCategories = Object.keys(templateGroups).sort();
+
+                                return (
+                                    <div className="flex flex-col gap-6">
+                                        {sortedCategories.map(cat => (
+                                            <div key={cat} className="animate-in slide-in-from-left-2 duration-300">
+                                                <h3 className="text-[11px] font-bold text-[#666] uppercase tracking-wider mb-2 px-1 flex items-center justify-between group/cat">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-1 h-3 rounded-full bg-[#007acc]" />
+                                                        {cat}
+                                                    </div>
+                                                </h3>
+                                                <div className="flex flex-col gap-2">
+                                                    {templateGroups[cat].map((tpl) => (
+                                                        <div key={tpl.key} className="group/item relative">
+                                                            <div
+                                                                draggable
+                                                                onDragStart={(e) => {
+                                                                    e.dataTransfer.setData('text/plain', tpl.key);
+                                                                    e.dataTransfer.effectAllowed = 'copy';
+                                                                    setDragData({ type: 'TEMPLATE', payload: tpl.key });
+                                                                }}
+                                                                className="flex items-center gap-3 p-3 bg-[#2d2d2d] border border-[#3e3e42] rounded-lg cursor-grab hover:border-[#007acc] hover:bg-[#323236] transition-all"
+                                                            >
+                                                                <div className="w-10 h-10 rounded bg-[#38383e] flex items-center justify-center text-[#cccccc]">
+                                                                    {tpl.icon && <tpl.icon size={18} />}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="text-sm font-semibold text-[#cccccc] truncate">{tpl.name}</div>
+                                                                </div>
+                                                                <ChevronRight size={16} className="text-[#666] opacity-0 group-hover/item:opacity-100" />
+                                                            </div>
+
+                                                            {/* Preview Tooltip */}
+                                                            <div className="absolute left-[105%] top-0 w-[240px] bg-[#252526] border border-[#3f3f46] rounded-xl shadow-2xl p-3 z-50 opacity-0 group-hover/item:opacity-100 pointer-events-none transition-opacity duration-200">
+                                                                <div className="w-full aspect-video bg-[#1e1e1e] rounded-md mb-2 flex items-center justify-center text-[#444] border border-[#333]">
+                                                                    {tpl.icon && <tpl.icon size={48} strokeWidth={1} />}
+                                                                </div>
+                                                                <div className="text-xs font-bold text-white mb-1">{tpl.name}</div>
+                                                                <div className="text-[10px] text-[#888] leading-tight">Drag this pre-configured {cat.toLowerCase()} section.</div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                                <div className="text-xs font-bold text-white mb-1">{tpl.name}</div>
-                                                <div className="text-[10px] text-[#888] leading-tight">Drag to add this pre-configured {tpl.name.toLowerCase()} component to your page.</div>
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                        ))}
+                                        {sortedCategories.length === 0 && (
+                                            <div className="text-center py-12 text-[#666] text-xs">No templates matches your search.</div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <div className="p-3 border-t border-[#3f3f46] bg-[#222222]">
@@ -218,28 +288,51 @@ export const LeftSidebar = () => {
                         <div className="relative">
                             <Search size={14} className="absolute left-3 top-2.5 text-[#999999]" />
                             <input
-                                type="text" placeholder="Search Unsplash..."
+                                type="text" placeholder="Search Unsplash (Enter)..."
                                 className="w-full pl-9 pr-3 py-2 bg-[#3c3c3c] border border-transparent rounded text-xs text-white placeholder-[#999999] outline-none focus:ring-1 focus:ring-[#007acc]"
-                                value={assetSearch} onChange={(e) => setAssetSearch(e.target.value)}
+                                value={assetSearch}
+                                onChange={(e) => setAssetSearch(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && searchUnsplash(assetSearch)}
                             />
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                        <div className="grid grid-cols-2 gap-2">
-                            {filteredAssets.map(photo => (
-                                <div
-                                    key={photo.id}
-                                    draggable
-                                    onDragStart={() => setDragData({ type: 'ASSET_IMAGE', payload: photo.url })}
-                                    className="group relative aspect-square rounded overflow-hidden cursor-grab hover:ring-2 hover:ring-[#007acc]"
-                                >
-                                    <img src={photo.url} alt={photo.alt} className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </div>
-                            ))}
-                        </div>
+                        {isLoadingAssets ? (
+                            <div className="flex items-center justify-center h-20 text-[#666] text-xs">
+                                <Loader2 className="animate-spin mr-2" size={16} /> Fetching...
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2">
+                                {displayAssets.map(photo => (
+                                    <div
+                                        key={photo.id}
+                                        draggable
+                                        onDragStart={(e) => {
+                                            // --- FIX: ENABLE NATIVE DRAG ---
+                                            e.dataTransfer.setData('text/plain', photo.url);
+                                            e.dataTransfer.effectAllowed = 'copy';
+                                            setDragData({ type: 'ASSET_IMAGE', payload: photo.url });
+                                        }}
+                                        className="group relative aspect-square rounded overflow-hidden cursor-grab hover:ring-2 hover:ring-[#007acc] bg-[#1e1e1e]"
+                                    >
+                                        <img src={photo.url} alt={photo.alt} className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="absolute bottom-0 left-0 right-0 p-1 bg-black/60 text-[8px] text-white opacity-0 group-hover:opacity-100 truncate px-2">
+                                            {photo.alt}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {displayAssets.length === 0 && !isLoadingAssets && (
+                            <div className="mt-8 text-center text-[#666] text-xs">
+                                No images found.
+                            </div>
+                        )}
+
                         <div className="mt-4 text-[10px] text-center text-[#666]">
-                            Powered by Unsplash API (Demo)
+                            Powered by Unsplash API
                         </div>
                     </div>
                 </div>

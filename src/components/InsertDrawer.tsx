@@ -48,11 +48,17 @@ export const InsertDrawer = () => {
             })
         : [];
 
-    const handleDragStartComponent = (_e: React.DragEvent, type: string) => {
+    const handleDragStartComponent = (e: React.DragEvent, type: string) => {
+        // FIX: Enable Native Drag
+        e.dataTransfer.setData('text/plain', type);
+        e.dataTransfer.effectAllowed = 'copy';
         setDragData({ type: 'NEW', payload: type });
     };
 
-    const handleDragStartTemplate = (_e: React.DragEvent, templateKey: string) => {
+    const handleDragStartTemplate = (e: React.DragEvent, templateKey: string) => {
+        // FIX: Enable Native Drag
+        e.dataTransfer.setData('text/plain', templateKey);
+        e.dataTransfer.effectAllowed = 'copy';
         setDragData({ type: 'TEMPLATE', payload: templateKey });
     };
 

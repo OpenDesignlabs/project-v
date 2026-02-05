@@ -7,6 +7,7 @@ import { instantiateTemplate as instantiateTemplateTS } from '../utils/templateU
 let wasmModule: any = null;
 
 export type SidebarPanel = 'add' | 'layers' | 'pages' | 'assets' | 'settings' | null;
+export type AppView = 'dashboard' | 'editor';
 
 interface ExtendedEditorContextType {
     elements: VectraProject;
@@ -57,6 +58,9 @@ interface ExtendedEditorContextType {
     instantiateTemplate: (rootId: string, nodes: VectraProject) => { newNodes: VectraProject; rootId: string };
     recentComponents: string[];
     addRecentComponent: (id: string) => void;
+    currentView: AppView;
+    createNewProject: (templateId: string) => void;
+    exitProject: () => void;
 }
 
 const EditorContext = createContext<ExtendedEditorContextType | undefined>(undefined);
@@ -102,6 +106,31 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const filtered = prev.filter(item => item !== id);
             return [id, ...filtered].slice(0, 8);
         });
+    }, []);
+
+    const [currentView, setCurrentView] = useState<AppView>('dashboard');
+
+    const createNewProject = useCallback((templateId: string) => {
+        console.log(`[Vectra] Initializing ${templateId}...`);
+
+        // 1. Reset Editor Data
+        setElements(INITIAL_DATA);
+
+        // 2. Clear History
+        setHistoryStack([INITIAL_DATA]);
+        setHistoryIndex(0);
+
+        // 3. Clear Storage
+        localStorage.removeItem(STORAGE_KEY);
+
+        // 4. Force View Change
+        setCurrentView('editor');
+    }, []);
+
+    const exitProject = useCallback(() => {
+        if (confirm("Exit to dashboard? Unsaved changes may be lost.")) {
+            setCurrentView('dashboard');
+        }
     }, []);
 
     // --- INITIALIZE RUST ENGINE ---
@@ -289,7 +318,8 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     // --- HYBRID TEMPLATE INSTANTIATION (RUST + TS) ---
     const instantiateTemplate = useCallback((rootId: string, nodes: VectraProject): { newNodes: VectraProject; rootId: string } => {
-        if (wasmModule) {
+        // FIX: Temporarily disable Rust implementation as it causes ID mismatch crashes
+        /* if (wasmModule) {
             try {
                 const result = wasmModule.instantiate_template(nodes, rootId);
                 return { newNodes: result.new_nodes, rootId: result.root_id };
@@ -297,6 +327,8 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                 console.error("Rust template failed, falling back to JS", e);
             }
         }
+        */
+        // Always use reliable TS fallback for now
         return instantiateTemplateTS(rootId, nodes);
     }, []);
 
@@ -439,7 +471,8 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             history: { undo, redo }, runAction, viewMode, setViewMode,
             isInsertDrawerOpen, toggleInsertDrawer, activePanel, setActivePanel, togglePanel,
             componentRegistry, registerComponent, instantiateTemplate,
-            recentComponents, addRecentComponent
+            recentComponents, addRecentComponent,
+            currentView, createNewProject, exitProject
         }}>
             {children}
         </EditorContext.Provider>

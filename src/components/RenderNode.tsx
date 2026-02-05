@@ -1,10 +1,9 @@
 import React, { useRef, useState, useEffect, Suspense, lazy } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { TEMPLATES } from '../data/templates';
-import { COMPONENT_TYPES } from '../data/constants';
 import { Resizer } from './Resizer';
 import { cn } from '../lib/utils';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, PlayCircle } from 'lucide-react';
 
 // --- LAZY LOAD MARKETPLACE COMPONENTS ---
 const GeometricShapesBackground = lazy(() => import('./marketplace/GeometricShapes').then(m => ({ default: m.GeometricShapesBackground })));
@@ -21,7 +20,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         elements, selectedId, setSelectedId, hoveredId, setHoveredId,
         previewMode, dragData, setDragData, updateProject,
         interaction, setInteraction, zoom, activeTool, setActivePanel,
-        instantiateTemplate
+        instantiateTemplate, componentRegistry // FIX 1: Use Registry for custom components
     } = useEditor();
 
     const element = elements[elementId];
@@ -75,7 +74,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         if (!element.locked) e.stopPropagation();
         if (!element.locked) setSelectedId(elementId);
 
-        if (activeTool === 'type' && ['text', 'button', 'heading'].includes(element.type)) {
+        if (activeTool === 'type' && ['text', 'button', 'heading', 'link'].includes(element.type)) {
             setIsEditing(true); return;
         }
 
@@ -129,10 +128,20 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
     };
 
     const handleDrop = (e: React.DragEvent) => {
-        e.stopPropagation(); e.preventDefault();
-        // Allow drops on containers if they have layoutMode or are artboards
+        // FIX: Safety Check - if element is somehow undefined, abort immediately
+        if (!element) return;
+
+        // FIX 2: Do NOT stop propagation yet. Check if this is a valid target first.
         const isValidTarget = isArtboard || element.props.layoutMode;
-        if (!dragData || !isValidTarget || element.locked || previewMode) return;
+
+        // If this element cannot accept drops, let the event bubble to its parent
+        if (!isValidTarget || element.locked || previewMode) return;
+
+        // If we are here, THIS element will handle the drop. Now we stop bubbling.
+        e.stopPropagation();
+        e.preventDefault();
+
+        if (!dragData) return;
 
         const rect = nodeRef.current?.getBoundingClientRect();
         if (!rect) return;
@@ -141,7 +150,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         const dropY = (e.clientY - rect.top) / zoom;
 
         if (dragData.type === 'NEW') {
-            const conf = COMPONENT_TYPES[dragData.payload];
+            const conf = componentRegistry[dragData.payload]; // FIX 1: Use registry
             if (conf) {
                 const newId = `el-${Date.now()}`;
                 const isFrame = dragData.payload === 'webpage' || dragData.payload === 'canvas';
@@ -208,7 +217,6 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                 setSelectedId(rootId);
             }
         }
-        // --- HANDLE IMAGE ASSETS ---
         else if (dragData.type === 'ASSET_IMAGE') {
             const newId = `img-${Date.now()}`;
             const imgW = 256;
@@ -217,11 +225,11 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                 id: newId,
                 type: 'image',
                 name: 'Image',
-                children: [] as string[],
+                children: [],
                 props: {
                     className: 'object-cover rounded-lg shadow-sm',
                     style: {
-                        position: (element.props.layoutMode === 'flex' ? 'relative' : 'absolute') as 'relative' | 'absolute',
+                        position: (element.props.layoutMode === 'flex' ? 'relative' : 'absolute') as any,
                         left: element.props.layoutMode === 'flex' ? 'auto' : `${Math.round(dropX - imgW / 2)}px`,
                         top: element.props.layoutMode === 'flex' ? 'auto' : `${Math.round(dropY - imgH / 2)}px`,
                         width: `${imgW}px`,
@@ -236,19 +244,18 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
             updateProject(newElements);
             setSelectedId(newId);
         }
+
         setDragData(null);
     };
 
     let finalStyle: React.CSSProperties = { ...element.props.style };
     let finalClass = element.props.className || '';
 
-    // --- APPLY TRANSFORMS & HOVER EFFECTS ---
     const transformParts: string[] = [];
     if (finalStyle.rotate) transformParts.push(`rotate(${finalStyle.rotate})`);
 
     let currentScale = parseFloat(String(finalStyle.scale || 1));
 
-    // HOVER LOGIC
     const hoverEffect = element.props.hoverEffect;
     if (hoverEffect && hoverEffect !== 'none') {
         finalStyle.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
@@ -302,7 +309,6 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         finalStyle = { ...finalStyle, position: 'relative', left: 'auto', top: 'auto', width: '100%', height: 'auto', transform: 'none' };
     }
 
-    // --- RENDER CONTENT ---
     let content = null;
     const LoadingPlaceholder = () => <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-400"><Loader2 className="animate-spin" size={24} /></div>;
 
@@ -315,8 +321,44 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
     else if (element.type === 'hero_modern') {
         content = <>{element.children?.map(childId => <RenderNode key={isMobileMirror ? `${childId}-mobile` : childId} elementId={childId} isMobileMirror={isMobileMirror} />)}</>;
     }
-    else if (element.type === 'text' || element.type === 'button' || element.type === 'heading') content = element.content;
-    else if (element.type === 'image') content = <img className="w-full h-full object-cover pointer-events-none" src={element.src} alt="" />;
+    // TEXT / BASIC TYPES
+    else if (element.type === 'text' || element.type === 'button' || element.type === 'heading' || element.type === 'link') {
+        content = element.content;
+    }
+    // INPUTS
+    else if (element.type === 'input') {
+        content = (
+            <input
+                type="text"
+                readOnly
+                className="w-full h-full bg-transparent outline-none border-none text-inherit px-2 cursor-text"
+                placeholder={element.props.placeholder || 'Input...'}
+            />
+        );
+    }
+    else if (element.type === 'checkbox') {
+        content = (
+            <input
+                type="checkbox"
+                readOnly
+                className="w-5 h-5 accent-blue-600 pointer-events-none"
+                checked={element.props.checked}
+            />
+        );
+    }
+    // MEDIA
+    else if (element.type === 'image') {
+        content = <img className="w-full h-full object-cover pointer-events-none" src={element.src} alt="" />;
+    }
+    else if (element.type === 'video') {
+        content = (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/10 text-slate-400 pointer-events-none border border-slate-200/50 rounded-lg overflow-hidden">
+                <PlayCircle size={32} className="mb-2 opacity-40 text-slate-900" />
+                <span className="text-[10px] font-bold tracking-widest uppercase text-slate-900 opacity-40">Video Player</span>
+            </div>
+        );
+    }
+    // CONTAINERS / PAGES
     else {
         content = (
             <>
@@ -328,6 +370,8 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                 {element.children?.map(childId => (
                     <RenderNode key={isMobileMirror ? `${childId}-mobile` : childId} elementId={childId} isMobileMirror={isMobileMirror} />
                 ))}
+
+                {/* Empty Container Placeholder */}
                 {isContainer && !isArtboard && !element.children?.length && !previewMode && !element.props['data-custom-code'] && (
                     <div
                         onClick={(e) => { e.stopPropagation(); setSelectedId(elementId); setActivePanel('add'); }}
