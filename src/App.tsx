@@ -113,9 +113,6 @@ const EditorLayout = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [history, deleteElement, selectedId, setSelectedId, isImportOpen]);
 
-  // --- UPDATED LOADING LOGIC ---
-  // We only block the UI during the "Booting" and "Mounting" phases.
-  // "Installing" and "Starting Server" will happen in the background (visible in Preview).
   if (status === 'booting' || status === 'mounting') {
     let message = "Initializing...";
     switch (status) {

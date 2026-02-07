@@ -48,6 +48,14 @@ export interface VectraNode {
 
 export type VectraProject = Record<string, VectraNode>;
 
+// Page definition for Multi-Page Architecture
+export interface Page {
+    id: string;
+    name: string;
+    slug: string;       // URL path (e.g., '/', '/about', '/contact')
+    rootId: string;     // Pointer to the page's root element in VectraProject
+}
+
 export interface Guide {
     orientation: 'horizontal' | 'vertical';
     pos: number;

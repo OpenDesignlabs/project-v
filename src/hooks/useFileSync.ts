@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useEditor } from '../context/EditorContext';
 import { useContainer } from '../context/ContainerContext';
-import { generateAppTsx, sanitizeFilename } from '../utils/fileSystem';
-import { generateCode } from '../utils/codeGenerator';
+import { generatePageCode, generateRouterApp, generateCode } from '../utils/codeGenerator';
+import { sanitizeFilename } from '../utils/fileSystem';
 
 // STATIC CONTENT FOR LIBRARY FILES
 const COMPONENT_FILES = {
@@ -77,7 +77,7 @@ export const GeometricShapesBackground = () => <div className="absolute inset-0 
 };
 
 export const useFileSync = () => {
-    const { elements, interaction } = useEditor();
+    const { elements, interaction, pages } = useEditor();
     const { writeFile, status } = useContainer();
     const lastSyncedRef = useRef<string>("");
     const librariesWrittenRef = useRef(false);
@@ -105,25 +105,37 @@ export const useFileSync = () => {
         if (interaction?.type === 'MOVE' || interaction?.type === 'RESIZE') return;
 
         const sync = async () => {
-            const currentString = JSON.stringify(elements);
+            const currentString = JSON.stringify({ elements, pages });
             if (currentString === lastSyncedRef.current) return;
 
             try {
-                const rootIds = elements['page-home']?.children || [];
+                // --- MULTI-PAGE SYNC ---
+                if (pages && pages.length > 0) {
+                    // 1. Generate & Write Each Page Component
+                    for (const page of pages) {
+                        const componentName = page.name.replace(/[^a-zA-Z0-9]/g, '');
+                        const code = generatePageCode(elements, page.rootId, componentName);
+                        await writeFile(`src/pages/${componentName}.tsx`, code);
+                    }
 
-                // A. Sync individual components
-                for (const rootId of rootIds) {
-                    const node = elements[rootId];
-                    if (!node) continue;
+                    // 2. Generate & Write App.tsx (Router)
+                    const routerCode = generateRouterApp(pages);
+                    await writeFile('src/App.tsx', routerCode);
 
-                    const code = generateCode(elements, rootId);
-                    const fileName = sanitizeFilename(node.name);
-                    await writeFile(`src/components/${fileName}.tsx`, code);
+                    console.log(`[Vectra] Multi-page sync: ${pages.length} pages written.`);
+                } else {
+                    // Fallback: Single-page mode (legacy)
+                    const rootIds = elements['page-home']?.children || [];
+
+                    for (const rootId of rootIds) {
+                        const node = elements[rootId];
+                        if (!node) continue;
+
+                        const code = generateCode(elements, rootId);
+                        const fileName = sanitizeFilename(node.name);
+                        await writeFile(`src/components/${fileName}.tsx`, code);
+                    }
                 }
-
-                // B. Sync App Structure
-                const appTsx = generateAppTsx(elements, 'page-home');
-                await writeFile('src/App.tsx', appTsx);
 
                 lastSyncedRef.current = currentString;
                 console.log("[Vectra] Sync: Project structure updated.");
@@ -132,8 +144,9 @@ export const useFileSync = () => {
             }
         };
 
-        const timer = setTimeout(sync, 500);
+        // Increased debounce to prevent partial writes during rapid changes
+        const timer = setTimeout(sync, 800);
         return () => clearTimeout(timer);
 
-    }, [elements, interaction, status, writeFile]);
+    }, [elements, interaction, status, writeFile, pages]);
 };

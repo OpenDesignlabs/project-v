@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import type { VectraProject, DragData, InteractionState, Guide, Asset, GlobalStyles, EditorTool, DeviceType, ActionType, ViewMode, ComponentConfig } from '../types';
+import type { VectraProject, DragData, InteractionState, Guide, Asset, GlobalStyles, EditorTool, DeviceType, ActionType, ViewMode, ComponentConfig, Page } from '../types';
 import { INITIAL_DATA, COMPONENT_TYPES, STORAGE_KEY } from '../data/constants';
 import { instantiateTemplate as instantiateTemplateTS } from '../utils/templateUtils';
 
@@ -42,8 +42,11 @@ interface ExtendedEditorContextType {
     addAsset: (file: File) => void;
     globalStyles: GlobalStyles;
     setGlobalStyles: React.Dispatch<React.SetStateAction<GlobalStyles>>;
-    addPage: (name: string) => void;
+    addPage: (name: string, slug?: string) => void;
     deletePage: (id: string) => void;
+    pages: Page[];
+    switchPage: (pageId: string) => void;
+    realPageId: string;
     updateProject: (newElements: VectraProject) => void;
     deleteElement: (id: string) => void;
     history: { undo: () => void; redo: () => void };
@@ -59,6 +62,7 @@ interface ExtendedEditorContextType {
     recentComponents: string[];
     addRecentComponent: (id: string) => void;
     currentView: AppView;
+    setCurrentView: (view: AppView) => void;
     createNewProject: (templateId: string) => void;
     exitProject: () => void;
 }
@@ -92,6 +96,11 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const [guides, setGuides] = useState<Guide[]>([]);
     const [assets, setAssets] = useState<Asset[]>([]);
+
+    // --- MULTI-PAGE STATE ---
+    const [pages, setPages] = useState<Page[]>([
+        { id: 'page-home', name: 'Home', slug: '/', rootId: 'page-home' }
+    ]);
     const [globalStyles, setGlobalStyles] = useState<GlobalStyles>({
         colors: { primary: '#3b82f6', secondary: '#10b981', accent: '#f59e0b', dark: '#1e293b' },
         fonts: {}
@@ -238,24 +247,77 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         reader.readAsDataURL(file);
     };
 
-    const addPage = (name: string) => {
+    const addPage = (name: string, slug?: string) => {
         const pageId = `page-${Date.now()}`;
         const canvasId = `canvas-${Date.now()}`;
+        const pageSlug = slug || `/${name.toLowerCase().replace(/\s+/g, '-')}`;
+
         const newElements = { ...elements };
-        newElements[pageId] = { id: pageId, type: 'page', name: name, children: [canvasId], props: { layoutMode: 'canvas', className: 'w-full h-full relative', style: { width: '100%', height: '100%' } } };
-        newElements[canvasId] = { id: canvasId, type: 'canvas', name: 'Artboard 1', children: [], props: { className: 'bg-white shadow-xl relative overflow-hidden', style: { position: 'absolute', left: '100px', top: '100px', width: '1440px', height: '1024px' } } };
-        if (newElements['application-root']) newElements['application-root'] = { ...newElements['application-root'], children: [...(newElements['application-root'].children || []), pageId] };
+
+        // Page Wrapper Node
+        newElements[pageId] = {
+            id: pageId, type: 'page', name: name, children: [canvasId],
+            props: { layoutMode: 'canvas', className: 'w-full h-full relative', style: { width: '100%', height: '100%' } }
+        };
+
+        // Webpage/Canvas Frame Node - CRITICAL: layoutMode must be 'canvas' for drag-drop
+        newElements[canvasId] = {
+            id: canvasId, type: 'webpage', name: name, children: [],
+            props: {
+                layoutMode: 'canvas', // <-- CRITICAL for drag-drop to work
+                className: 'bg-white shadow-xl relative overflow-hidden',
+                style: {
+                    position: 'absolute',
+                    left: '100px',
+                    top: '100px',
+                    width: '1440px',
+                    height: '1024px',
+                    backgroundColor: '#ffffff'
+                }
+            }
+        };
+
+        if (newElements['application-root']) {
+            newElements['application-root'] = {
+                ...newElements['application-root'],
+                children: [...(newElements['application-root'].children || []), pageId]
+            };
+        }
+
+        // Add to pages array
+        setPages(prev => [...prev, { id: pageId, name, slug: pageSlug, rootId: pageId }]);
+
         updateProject(newElements);
         setActivePageId(pageId);
+        setSelectedId(null);
     };
 
+    const switchPage = useCallback((pageId: string) => {
+        setSelectedId(null);
+        setActivePageId(pageId);
+        setPan({ x: 0, y: 0 });
+    }, []);
+
     const deletePage = (id: string) => {
-        if (id === 'page-home') return;
+        if (id === 'page-home') return; // Cannot delete home page
+        if (pages.length <= 1) return; // Must have at least one page
+
         const newElements = { ...elements };
-        if (newElements['application-root']) newElements['application-root'] = { ...newElements['application-root'], children: newElements['application-root'].children?.filter(cid => cid !== id) };
+        if (newElements['application-root']) {
+            newElements['application-root'] = {
+                ...newElements['application-root'],
+                children: newElements['application-root'].children?.filter(cid => cid !== id)
+            };
+        }
         delete newElements[id];
+
+        // Remove from pages array
+        setPages(prev => prev.filter(p => p.id !== id));
+
         updateProject(newElements);
-        setActivePageId('page-home');
+
+        // Switch to home if deleting active
+        if (activePageId === id) setActivePageId('page-home');
     };
 
     // --- HYBRID UNDO/REDO (RUST + TS) ---
@@ -467,12 +529,12 @@ export const EditorProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             activePageId, setActivePageId, previewMode, setPreviewMode, activeTool, setActiveTool,
             device, setDevice, dragData, setDragData, zoom, setZoom, pan, setPan, isPanning, setIsPanning,
             interaction, setInteraction, handleInteractionMove, guides, assets, addAsset,
-            globalStyles, setGlobalStyles, addPage, deletePage, updateProject, deleteElement,
+            globalStyles, setGlobalStyles, addPage, deletePage, pages, switchPage, realPageId: activePageId, updateProject, deleteElement,
             history: { undo, redo }, runAction, viewMode, setViewMode,
             isInsertDrawerOpen, toggleInsertDrawer, activePanel, setActivePanel, togglePanel,
             componentRegistry, registerComponent, instantiateTemplate,
             recentComponents, addRecentComponent,
-            currentView, createNewProject, exitProject
+            currentView, setCurrentView, createNewProject, exitProject
         }}>
             {children}
         </EditorContext.Provider>

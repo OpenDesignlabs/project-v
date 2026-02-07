@@ -68,7 +68,9 @@ export const VITE_REACT_TEMPLATE: FileSystem = {
           "react-dom": "^18.2.0",
           "lucide-react": "^0.263.1",
           "clsx": "^2.0.0",
-          "tailwind-merge": "^1.14.0"
+          "tailwind-merge": "^1.14.0",
+          "framer-motion": "^10.16.4",
+          "react-router-dom": "^6.14.1"
         },
         devDependencies: {
           "@types/react": "^18.2.15",
@@ -145,12 +147,15 @@ export default defineConfig({
           contents: `
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </React.StrictMode>,
 )`
         }
@@ -176,6 +181,7 @@ export default function App() {
         }
       },
       'components': { directory: {} },
+      'pages': { directory: {} },
       'assets': { directory: {} }
     }
   }

@@ -89,7 +89,7 @@ const ProjectSettings = () => {
 };
 
 export const RightSidebar = () => {
-    const { elements, selectedId, updateProject, previewMode } = useEditor();
+    const { elements, selectedId, updateProject, previewMode, pages } = useEditor();
     const [activeTab, setActiveTab] = useState<'design' | 'interact' | 'settings'>('design');
     const [bgMode, setBgMode] = useState<'color' | 'image'>('color');
     const [animScope, setAnimScope] = useState<'single' | 'all'>('single');
@@ -371,14 +371,14 @@ export const RightSidebar = () => {
                                 <Row label="Type">
                                     <div className="flex gap-2 w-full">
                                         <SelectInput
-                                            value={style.animationName || 'none'}
-                                            onChange={(v: string) => updateStyle('animationName', v)}
+                                            value={props.animation || 'none'}
+                                            onChange={(v: string) => updateProp('animation', v)}
                                             options={[
                                                 { value: 'none', label: 'None' },
-                                                { value: 'fade-in', label: 'Fade In' },
+                                                { value: 'fade', label: 'Fade In' },
                                                 { value: 'slide-up', label: 'Slide Up' },
-                                                { value: 'scale-up', label: 'Scale Up' },
-                                                { value: 'bounce', label: 'Bounce' },
+                                                { value: 'slide-left', label: 'Slide Left' },
+                                                { value: 'scale-in', label: 'Scale In' },
                                             ]}
                                         />
                                         <button onClick={() => updateStyle('--anim-trigger', Date.now())} className="p-1 bg-[#333] border border-[#3e3e42] rounded hover:bg-[#444] text-[#ccc] hover:text-white transition-colors" title="Replay">
@@ -386,11 +386,11 @@ export const RightSidebar = () => {
                                         </button>
                                     </div>
                                 </Row>
-                                {style.animationName && style.animationName !== 'none' && (
+                                {props.animation && props.animation !== 'none' && (
                                     <>
                                         <div className="grid grid-cols-2 gap-2">
-                                            <NumberInput label="Dur (s)" value={parseFloat(style.animationDuration || '0.3')} onChange={(v: number) => updateStyle('animationDuration', `${v}s`)} step={0.1} />
-                                            <NumberInput label="Dly (s)" value={parseFloat(style.animationDelay || '0')} onChange={(v: number) => updateStyle('animationDelay', `${v}s`)} step={0.1} />
+                                            <NumberInput label="Dur (s)" value={parseFloat(props.animationDuration || '0.3')} onChange={(v: number) => updateProp('animationDuration', v)} step={0.1} />
+                                            <NumberInput label="Dly (s)" value={parseFloat(props.animationDelay || '0')} onChange={(v: number) => updateProp('animationDelay', v)} step={0.1} />
                                         </div>
                                     </>
                                 )}
@@ -422,9 +422,27 @@ export const RightSidebar = () => {
                             </div>
                         </Section>
 
-                        <Section title="Actions">
-                            <div className="p-4 text-center text-xs text-[#666]">
-                                Click actions (Link, Scroll, Modal) coming soon.
+                        <Section title="Prototyping">
+                            <div className="space-y-3">
+                                <Row label="On Click">
+                                    <SelectInput
+                                        value={props.linkTo || ''}
+                                        onChange={(v: string) => updateProp('linkTo', v || undefined)}
+                                        options={[
+                                            { value: '', label: '— No Action —' },
+                                            ...pages.map(p => ({
+                                                value: p.slug,
+                                                label: `Navigate to: ${p.name}`
+                                            }))
+                                        ]}
+                                    />
+                                </Row>
+                                {props.linkTo && (
+                                    <div className="text-[10px] text-[#666] bg-[#252526] p-2 rounded border border-[#3e3e42] flex items-start gap-2">
+                                        <ArrowRight size={12} className="mt-0.5" />
+                                        <span>Clicking this element will navigate to <strong className="text-[#007acc]">{props.linkTo}</strong></span>
+                                    </div>
+                                )}
                             </div>
                         </Section>
                     </>

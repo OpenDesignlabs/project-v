@@ -4,6 +4,7 @@ import { TEMPLATES } from '../data/templates';
 import { Resizer } from './Resizer';
 import { cn } from '../lib/utils';
 import { Loader2, Plus, PlayCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 // --- LAZY LOAD MARKETPLACE COMPONENTS ---
 const GeometricShapesBackground = lazy(() => import('./marketplace/GeometricShapes').then(m => ({ default: m.GeometricShapesBackground })));
@@ -20,7 +21,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         elements, selectedId, setSelectedId, hoveredId, setHoveredId,
         previewMode, dragData, setDragData, updateProject,
         interaction, setInteraction, zoom, activeTool, setActivePanel,
-        instantiateTemplate, componentRegistry // FIX 1: Use Registry for custom components
+        instantiateTemplate, componentRegistry
     } = useEditor();
 
     const element = elements[elementId];
@@ -31,24 +32,23 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
     const [isVisualHover, setIsVisualHover] = useState(false);
 
     // Animation State
-    const [isPlaying, setIsPlaying] = useState(false);
+    const [animKey, setAnimKey] = useState(0);
+
     const styleAny = element?.props?.style as Record<string, unknown> | undefined;
-    const prevAnimName = useRef(element?.props?.style?.animationName);
+    const prevAnim = useRef(element?.props?.animation);
     const prevTrigger = useRef(styleAny?.['--anim-trigger']);
 
     useEffect(() => {
         if (previewMode) return;
-        const currentName = element?.props?.style?.animationName;
+        const currentAnim = element?.props?.animation;
         const currentTrigger = styleAny?.['--anim-trigger'];
 
-        if (currentName !== prevAnimName.current || currentTrigger !== prevTrigger.current) {
-            prevAnimName.current = currentName;
+        if (currentAnim !== prevAnim.current || currentTrigger !== prevTrigger.current) {
+            prevAnim.current = currentAnim;
             prevTrigger.current = currentTrigger;
-            setIsPlaying(true);
-            const timer = setTimeout(() => setIsPlaying(false), 1000);
-            return () => clearTimeout(timer);
+            setAnimKey(prev => prev + 1); // Re-mount or re-trigger animation
         }
-    }, [element?.props?.style?.animationName, styleAny?.['--anim-trigger'], previewMode]);
+    }, [element?.props?.animation, styleAny?.['--anim-trigger'], previewMode]);
 
     const dragStart = useRef({ x: 0, y: 0, left: 0, top: 0 });
 
@@ -278,11 +278,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         finalStyle.transition = 'none';
     }
 
-    if (!previewMode && !isPlaying) {
-        delete finalStyle.animationName;
-    } else if (finalStyle.animationName && finalStyle.animationName !== 'none') {
-        finalStyle.animationFillMode = 'both';
-    }
+
 
     if (isArtboard) {
         finalStyle.display = 'block';
@@ -384,9 +380,37 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
         );
     }
 
+    const motionProps: any = {};
+    if (element.props.animation && element.props.animation !== 'none') {
+        const type = element.props.animation;
+        if (type === 'fade') { motionProps.initial = { opacity: 0 }; motionProps.animate = { opacity: 1 }; }
+        if (type === 'slide-up') { motionProps.initial = { opacity: 0, y: 20 }; motionProps.animate = { opacity: 1, y: 0 }; }
+        if (type === 'slide-left') { motionProps.initial = { opacity: 0, x: -20 }; motionProps.animate = { opacity: 1, x: 0 }; }
+        if (type === 'scale-in') { motionProps.initial = { opacity: 0, scale: 0.9 }; motionProps.animate = { opacity: 1, scale: 1 }; }
+
+        const duration = element.props.animationDuration !== undefined ? element.props.animationDuration : 0.3;
+        const delay = element.props.animationDelay !== undefined ? element.props.animationDelay : 0;
+        motionProps.transition = { duration, delay, ease: 'easeOut' };
+    }
+
+    if (element.props.hoverEffect && element.props.hoverEffect !== 'none' && !interaction) {
+        const type = element.props.hoverEffect;
+        if (type === 'scale') motionProps.whileHover = { scale: 1.05 };
+        if (type === 'lift') motionProps.whileHover = { y: -8 };
+        if (type === 'glow') motionProps.whileHover = { boxShadow: "0 10px 40px -10px rgba(0,122,204,0.5)" };
+        if (type === 'border') motionProps.whileHover = { borderColor: "#007acc" };
+        if (type === 'opacity') motionProps.whileHover = { opacity: 0.7 };
+
+        if (!motionProps.transition) {
+            motionProps.transition = { duration: 0.2 };
+        }
+    }
+
     return (
-        <div
+        <motion.div
+            key={`${elementId}-${animKey}`}
             ref={nodeRef}
+            {...motionProps}
             id={isMobileMirror ? `${element.props.id}-mobile` : element.id}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -407,13 +431,13 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                 isArtboard ? 'bg-white' : ''
             )}
             style={finalStyle}
-            onPointerOver={(e) => { if (previewMode || dragData) return; e.stopPropagation(); setHoveredId(elementId); }}
+            onPointerOver={(e: any) => { if (previewMode || dragData) return; e.stopPropagation(); setHoveredId(elementId); }}
             onPointerOut={() => { if (!previewMode) setHoveredId(null); }}
         >
             {isSelected && !isMobileMirror && !isEditing && !element.locked && (isParentCanvas || isArtboard) && !previewMode && (
                 <Resizer elementId={elementId} />
             )}
             {content}
-        </div>
+        </motion.div>
     );
 };

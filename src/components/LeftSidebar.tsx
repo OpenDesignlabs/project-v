@@ -4,7 +4,7 @@ import { TEMPLATES } from '../data/templates';
 import {
     Plus, Layers, File, Image as ImageIcon,
     Search, X, Type, Layout, FormInput, Puzzle, Upload,
-    ChevronRight, Loader2, Clock
+    ChevronRight, Loader2, Clock, Trash2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { processImportedCode, generateComponentId } from '../utils/importHelpers';
@@ -36,7 +36,8 @@ export const LeftSidebar = () => {
     const {
         activePanel, setActivePanel, setDragData,
         previewMode, componentRegistry, registerComponent,
-        recentComponents, addRecentComponent
+        recentComponents, addRecentComponent,
+        pages, addPage, deletePage, switchPage, realPageId
     } = useEditor();
 
     const [activeCat, setActiveCat] = useState<DrawerTab>('basic');
@@ -344,6 +345,58 @@ export const LeftSidebar = () => {
                     <Suspense fallback={<div className="flex justify-center p-4"><Loader2 className="animate-spin text-[#666]" /></div>}>
                         <LayersPanel />
                     </Suspense>
+                </div>
+            )}
+
+            {/* PAGES PANEL */}
+            {activePanel === 'pages' && (
+                <div className="absolute left-[60px] top-0 bottom-0 w-[300px] bg-[#252526] border-r border-[#3f3f46] shadow-xl z-40 flex flex-col">
+                    <div className="p-4 border-b border-[#3f3f46] flex items-center justify-between">
+                        <h2 className="font-bold text-[#cccccc] text-xs uppercase tracking-wide">Pages</h2>
+                        <button
+                            onClick={() => {
+                                const name = prompt("Page Name:", "About");
+                                if (name) addPage(name, `/${name.toLowerCase().replace(/\s+/g, '-')}`);
+                            }}
+                            className="text-white hover:bg-[#007acc] p-1.5 rounded transition-colors"
+                            title="Add Page"
+                        >
+                            <Plus size={14} />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        {pages.map(page => (
+                            <div
+                                key={page.id}
+                                onClick={() => switchPage(page.id)}
+                                className={cn(
+                                    "flex items-center gap-3 p-3 cursor-pointer border-b border-[#333] hover:bg-[#2a2d2e] transition-colors",
+                                    realPageId === page.id ? "bg-[#37373d] border-l-2 border-l-[#007acc]" : ""
+                                )}
+                            >
+                                <File size={14} className="text-[#999] flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-xs font-bold text-white truncate">{page.name}</div>
+                                    <div className="text-[10px] text-[#666]">{page.slug}</div>
+                                </div>
+                                {pages.length > 1 && page.id !== 'page-home' && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (confirm(`Delete page "${page.name}"?`)) deletePage(page.id);
+                                        }}
+                                        className="text-[#666] hover:text-red-500 transition-colors p-1"
+                                        title="Delete Page"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="p-3 border-t border-[#3f3f46] text-[10px] text-[#666] text-center">
+                        {pages.length} page{pages.length !== 1 ? 's' : ''}
+                    </div>
                 </div>
             )}
         </div>
