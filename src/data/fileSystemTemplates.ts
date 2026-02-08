@@ -70,7 +70,8 @@ export const VITE_REACT_TEMPLATE: FileSystem = {
           "clsx": "^2.0.0",
           "tailwind-merge": "^1.14.0",
           "framer-motion": "^10.16.4",
-          "react-router-dom": "^6.14.1"
+          "react-router-dom": "^6.14.1",
+          "react-best-gradient-color-picker": "^3.0.10"
         },
         devDependencies: {
           "@types/react": "^18.2.15",

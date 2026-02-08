@@ -1,17 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useEditor } from '../context/EditorContext';
+import ColorPicker from 'react-best-gradient-color-picker';
 import { Section, Row, NumberInput, ColorInput, ToggleGroup, BoxModel, TextInput, SelectInput } from './ui/PremiumInputs';
+import { removeClasses } from '../utils/tailwindHelpers';
 import {
     AlignLeft, AlignCenter, AlignRight, AlignJustify,
     Grid, Box, Maximize, Lock, Eye,
     Type, ArrowRight, ArrowDown, Image as ImageIcon, PaintBucket, RotateCw, Layers, MousePointer2,
     Hand, Settings, Layout, Hash, Type as TypeIcon,
-    MoveHorizontal, MoveVertical
+    MoveHorizontal, MoveVertical, Droplets, Sun,
+    CornerUpLeft, CornerUpRight, CornerDownLeft, CornerDownRight,
+    Monitor, Sparkles
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-// --- SUB-COMPONENTS ---
+// --- TYPES ---
+type Tab = 'design' | 'interact' | 'settings';
+type DesignState = 'base' | 'hover' | 'focus';
+type FillMode = 'solid' | 'gradient' | 'image';
 
+// --- SUB-COMPONENTS ---
 const TabButton = ({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof Layout; label: string }) => (
     <button
         onClick={onClick}
@@ -23,6 +31,35 @@ const TabButton = ({ active, onClick, icon: Icon, label }: { active: boolean; on
         <Icon size={14} />
         {label}
     </button>
+);
+
+const RangeControl = ({ label, value, max, min = 0, onChange, unit = '' }: { label: string; value: number; max: number; min?: number; onChange: (v: number) => void; unit?: string }) => (
+    <div>
+        <div className="flex justify-between mb-1">
+            <label className="text-[9px] text-[#888] uppercase font-semibold">{label}</label>
+            <span className="text-[9px] text-[#666]">{value}{unit}</span>
+        </div>
+        <input
+            type="range" min={min} max={max} value={value}
+            onChange={(e) => onChange(parseInt(e.target.value))}
+            className="w-full accent-blue-500 h-1 bg-[#333] rounded-lg appearance-none cursor-pointer"
+        />
+    </div>
+);
+
+const InputUnit = ({ label, icon: Icon, value, onChange }: { label: string; icon: any; value: number; onChange: (v: number) => void }) => (
+    <div className="bg-[#2a2a2c] p-2 rounded border border-[#333] flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[#888]">
+            <Icon size={12} />
+            <span className="text-[9px] uppercase font-semibold">{label}</span>
+        </div>
+        <input
+            type="number"
+            className="w-12 bg-transparent text-right text-xs text-white outline-none border-b border-transparent focus:border-blue-500"
+            value={value}
+            onChange={(e) => onChange(parseInt(e.target.value) || 0)}
+        />
+    </div>
 );
 
 const ProjectSettings = () => {
@@ -90,18 +127,56 @@ const ProjectSettings = () => {
 
 export const RightSidebar = () => {
     const { elements, selectedId, updateProject, previewMode, pages } = useEditor();
-    const [activeTab, setActiveTab] = useState<'design' | 'interact' | 'settings'>('design');
-    const [bgMode, setBgMode] = useState<'color' | 'image'>('color');
+    const [activeTab, setActiveTab] = useState<Tab>('design');
+    const [fillMode, setFillMode] = useState<FillMode>('solid');
     const [animScope, setAnimScope] = useState<'single' | 'all'>('single');
+    const [designState, setDesignState] = useState<DesignState>('base');
 
-    if (previewMode) return null;
+    // Local state for glassmorphism effects
+    const [blur, setBlur] = useState(0);
+    const [brightness, setBrightness] = useState(100);
+    const [contrast, setContrast] = useState(100);
 
+    // Local state for gradient picker
+    const [colorPickerValue, setColorPickerValue] = useState('rgba(255,255,255,1)');
+
+    // Get element BEFORE useEffect to ensure hook count is consistent
     const element = selectedId ? elements[selectedId] : null;
+
+    // --- FIX: useEffect is now UNCONDITIONAL (runs every render, even if previewMode is true) ---
+    useEffect(() => {
+        if (!element) return;
+        const style = element.props.style || {};
+
+        // Parse Backdrop Filter
+        const bf = String(style.backdropFilter || '');
+        const blurMatch = bf.match(/blur\((\d+)px\)/);
+        const brightMatch = bf.match(/brightness\(([\d.]+)\)/);
+        const contMatch = bf.match(/contrast\(([\d.]+)\)/);
+
+        if (blurMatch) setBlur(parseInt(blurMatch[1]));
+        else setBlur(0);
+        if (brightMatch) setBrightness(Math.round(parseFloat(brightMatch[1]) * 100));
+        else setBrightness(100);
+        if (contMatch) setContrast(Math.round(parseFloat(contMatch[1]) * 100));
+        else setContrast(100);
+
+        // Set color picker value from style
+        if (style.background) {
+            setColorPickerValue(String(style.background));
+        } else if (style.backgroundColor) {
+            setColorPickerValue(String(style.backgroundColor));
+        }
+
+    }, [element?.id]);
+
+    // --- FIX: Early returns AFTER all hooks ---
+    if (previewMode) return null;
 
     // --- EMPTY STATE -> PROJECT SETTINGS ---
     if (!element) {
         return (
-            <div className="w-[280px] bg-[#1e1e1e] border-l border-[#252526] h-full flex flex-col">
+            <div className="w-[300px] bg-[#1e1e1e] border-l border-[#252526] h-full flex flex-col">
                 <ProjectSettings />
             </div>
         );
@@ -143,13 +218,27 @@ export const RightSidebar = () => {
         updateProject(newElements);
     };
 
+    const updateFilter = (newBlur: number, newBright: number, newCont: number) => {
+        setBlur(newBlur);
+        setBrightness(newBright);
+        setContrast(newCont);
+
+        const parts = [];
+        if (newBlur > 0) parts.push(`blur(${newBlur}px)`);
+        if (newBright !== 100) parts.push(`brightness(${newBright / 100})`);
+        if (newCont !== 100) parts.push(`contrast(${newCont / 100})`);
+
+        updateStyle('backdropFilter', parts.length > 0 ? parts.join(' ') : 'none');
+    };
+
     const style = element.props.style || {};
     const props = element.props || {};
+    const classes = props.className || '';
     const getVal = (val: any, fallback: any = 0) => parseInt(String(val || fallback).replace('px', ''));
     const handleBoxModelChange = (field: string, value: string) => updateStyle(field, parseInt(value) || 0);
 
     return (
-        <div className="w-[280px] bg-[#1e1e1e] border-l border-[#252526] h-full flex flex-col">
+        <div className="w-[320px] bg-[#1e1e1e] border-l border-[#252526] h-full flex flex-col">
 
             {/* IDENTITY HEADER */}
             <div className="p-3 border-b border-[#252526] bg-[#1e1e1e]">
@@ -197,6 +286,36 @@ export const RightSidebar = () => {
                             </Row>
                         </div>
 
+                        {/* DESIGN STATE SELECTOR */}
+                        <div className="p-3 border-b border-[#252526]">
+                            <label className="text-[9px] text-[#666] uppercase font-semibold mb-2 block">Design State</label>
+                            <div className="flex bg-[#252526] p-0.5 rounded border border-[#3e3e42]">
+                                {(['base', 'hover', 'focus'] as DesignState[]).map(state => (
+                                    <button
+                                        key={state}
+                                        onClick={() => setDesignState(state)}
+                                        className={cn(
+                                            "flex-1 py-1.5 text-[10px] uppercase font-bold rounded transition-all flex items-center justify-center gap-1",
+                                            designState === state
+                                                ? "bg-[#333] text-white shadow-sm"
+                                                : "text-[#666] hover:text-[#999]"
+                                        )}
+                                    >
+                                        {state === 'base' && <Monitor size={10} />}
+                                        {state === 'hover' && <Hand size={10} />}
+                                        {state === 'focus' && <Eye size={10} />}
+                                        {state}
+                                    </button>
+                                ))}
+                            </div>
+                            {designState !== 'base' && (
+                                <div className="mt-2 text-[10px] text-amber-500/80 bg-amber-500/10 p-2 rounded border border-amber-500/20 flex items-start gap-2">
+                                    <Sparkles size={12} className="mt-0.5 flex-shrink-0" />
+                                    <span>Editing <strong>{designState}:</strong> styles</span>
+                                </div>
+                            )}
+                        </div>
+
                         {/* LAYOUT */}
                         <Section title="Layout">
                             <div className="grid grid-cols-2 gap-2 mb-2">
@@ -219,7 +338,7 @@ export const RightSidebar = () => {
                                 />
                             </Row>
 
-                            {/* VISUAL FLEX CONTROLS */}
+                            {/* FLEX CONTROLS */}
                             {element.props.layoutMode === 'flex' && (
                                 <div className="mt-2 space-y-2 p-2 bg-[#252526] rounded border border-[#3e3e42]">
                                     <Row label="Direction">
@@ -316,35 +435,92 @@ export const RightSidebar = () => {
                             </Section>
                         )}
 
-                        {/* FILLS */}
-                        <Section title="Fills">
+                        {/* FILL & GRADIENT (NEW GRADIENT PICKER) */}
+                        <Section title="Fill & Gradient">
                             <div className="flex bg-[#252526] p-0.5 rounded border border-[#3e3e42] mb-3">
-                                <button onClick={() => setBgMode('color')} className={cn("flex-1 py-1 rounded text-[10px] font-medium transition-all", bgMode === 'color' ? "bg-[#3e3e42] text-white" : "text-[#858585]")}><PaintBucket size={10} className="inline mr-1" />Color</button>
-                                <button onClick={() => setBgMode('image')} className={cn("flex-1 py-1 rounded text-[10px] font-medium transition-all", bgMode === 'image' ? "bg-[#3e3e42] text-white" : "text-[#858585]")}><ImageIcon size={10} className="inline mr-1" />Image</button>
+                                <button onClick={() => setFillMode('solid')} className={cn("flex-1 py-1 rounded text-[10px] font-medium transition-all", fillMode === 'solid' ? "bg-[#3e3e42] text-white" : "text-[#858585]")}><PaintBucket size={10} className="inline mr-1" />Solid</button>
+                                <button onClick={() => setFillMode('gradient')} className={cn("flex-1 py-1 rounded text-[10px] font-medium transition-all", fillMode === 'gradient' ? "bg-[#3e3e42] text-white" : "text-[#858585]")}><Sun size={10} className="inline mr-1" />Gradient</button>
+                                <button onClick={() => setFillMode('image')} className={cn("flex-1 py-1 rounded text-[10px] font-medium transition-all", fillMode === 'image' ? "bg-[#3e3e42] text-white" : "text-[#858585]")}><ImageIcon size={10} className="inline mr-1" />Image</button>
                             </div>
-                            {bgMode === 'color' ? (
-                                <ColorInput value={style.backgroundColor || 'transparent'} onChange={(v) => { updateStyle('backgroundColor', v); updateStyle('backgroundImage', 'none'); }} />
-                            ) : (
+
+                            {(fillMode === 'solid' || fillMode === 'gradient') && (
+                                <div className="bg-[#2a2a2c] p-2 rounded-lg border border-[#333]">
+                                    <ColorPicker
+                                        value={colorPickerValue}
+                                        onChange={(color) => {
+                                            setColorPickerValue(color);
+                                            updateStyle('background', color);
+                                            // Clean tailwind conflict
+                                            let newClass = classes;
+                                            newClass = removeClasses(newClass, 'bg-');
+                                            newClass = removeClasses(newClass, 'from-');
+                                            newClass = removeClasses(newClass, 'to-');
+                                            newClass = removeClasses(newClass, 'via-');
+                                            if (newClass !== classes) {
+                                                updateProp('className', newClass);
+                                            }
+                                        }}
+                                        hideControls={fillMode === 'solid'}
+                                        hidePresets={false}
+                                        hideEyeDrop={false}
+                                        hideAdvancedSliders={true}
+                                        hideColorGuide={true}
+                                        hideInputType={false}
+                                        width={280}
+                                        height={fillMode === 'gradient' ? 180 : 120}
+                                    />
+                                </div>
+                            )}
+
+                            {fillMode === 'image' && (
                                 <div className="space-y-2">
-                                    <TextInput value={style.backgroundImage?.replace('url(', '').replace(')', '') || ''} onChange={(v: string) => { updateStyle('backgroundImage', `url(${v})`); updateStyle('backgroundSize', 'cover'); updateStyle('backgroundPosition', 'center'); updateStyle('backgroundColor', 'transparent'); }} placeholder="Image URL..." icon={ImageIcon} />
+                                    <TextInput value={style.backgroundImage?.replace('url(', '').replace(')', '') || ''} onChange={(v: string) => { updateStyle('backgroundImage', `url(${v})`); updateStyle('backgroundSize', 'cover'); updateStyle('backgroundPosition', 'center'); }} placeholder="Image URL..." icon={ImageIcon} />
                                     <Row label="Size"><SelectInput value={style.backgroundSize || 'cover'} onChange={(v: string) => updateStyle('backgroundSize', v)} options={[{ value: 'cover', label: 'Cover' }, { value: 'contain', label: 'Contain' }, { value: 'auto', label: 'Auto' }]} /></Row>
                                 </div>
                             )}
                         </Section>
 
-                        {/* BORDERS */}
-                        <Section title="Borders">
-                            <div className="grid grid-cols-2 gap-2 mb-2">
-                                <NumberInput label="Radius" value={getVal(style.borderRadius)} onChange={(v: number) => updateStyle('borderRadius', v)} />
-                                <NumberInput label="Width" value={getVal(style.borderWidth)} onChange={(v: number) => updateStyle('borderWidth', v)} />
+                        {/* BORDERS (Individual Corners) */}
+                        <Section title="Border Radius">
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                                <InputUnit label="TL" icon={CornerUpLeft} value={getVal(style.borderTopLeftRadius)} onChange={(v) => updateStyle('borderTopLeftRadius', v)} />
+                                <InputUnit label="TR" icon={CornerUpRight} value={getVal(style.borderTopRightRadius)} onChange={(v) => updateStyle('borderTopRightRadius', v)} />
+                                <InputUnit label="BL" icon={CornerDownLeft} value={getVal(style.borderBottomLeftRadius)} onChange={(v) => updateStyle('borderBottomLeftRadius', v)} />
+                                <InputUnit label="BR" icon={CornerDownRight} value={getVal(style.borderBottomRightRadius)} onChange={(v) => updateStyle('borderBottomRightRadius', v)} />
                             </div>
-                            <Row label="Color"><ColorInput value={style.borderColor || 'transparent'} onChange={(v) => updateStyle('borderColor', v)} /></Row>
+
+                            <div className="pt-3 border-t border-[#333]">
+                                <label className="text-[9px] text-[#666] mb-2 block uppercase font-bold">Border Width & Color</label>
+                                <div className="flex gap-2 items-center">
+                                    <NumberInput label="Width" value={getVal(style.borderWidth)} onChange={(v: number) => { updateStyle('borderWidth', v); updateStyle('borderStyle', 'solid'); }} />
+                                    <ColorInput value={style.borderColor || 'transparent'} onChange={(v) => updateStyle('borderColor', v)} />
+                                </div>
+                            </div>
                         </Section>
 
-                        {/* TRANSFORM */}
-                        <Section title="Effects & Transform">
-                            <Row label="Opacity"><input type="range" min="0" max="1" step="0.01" value={style.opacity !== undefined ? style.opacity : 1} onChange={(e) => updateStyle('opacity', e.target.value)} className="w-full h-1 bg-[#3e3e42] rounded-lg accent-[#007acc]" /></Row>
-                            <div className="grid grid-cols-2 gap-2 mt-2">
+                        {/* EFFECTS & GLASSMORPHISM */}
+                        <Section title="Effects & Glassmorphism">
+                            <div className="space-y-4">
+                                <RangeControl label="Opacity" value={Math.round((style.opacity !== undefined ? parseFloat(String(style.opacity)) : 1) * 100)} max={100} onChange={(v) => updateStyle('opacity', v / 100)} unit="%" />
+
+                                <div className="pt-3 border-t border-[#333]">
+                                    <label className="text-[9px] text-[#666] uppercase font-semibold mb-3 block flex items-center gap-2">
+                                        <Droplets size={10} className="text-cyan-400" /> Glassmorphism
+                                    </label>
+                                    <div className="space-y-3">
+                                        <RangeControl label="Blur" value={blur} max={40} onChange={(v) => updateFilter(v, brightness, contrast)} unit="px" />
+                                        <RangeControl label="Brightness" value={brightness} max={200} onChange={(v) => updateFilter(blur, v, contrast)} unit="%" />
+                                        <RangeControl label="Contrast" value={contrast} max={200} onChange={(v) => updateFilter(blur, brightness, v)} unit="%" />
+                                    </div>
+                                    {blur > 0 && (
+                                        <div className="mt-3 text-[10px] text-cyan-400 bg-cyan-500/10 p-2 rounded border border-cyan-500/20">
+                                            💡 Set a semi-transparent fill color to see the glass effect
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-[#333]">
                                 <NumberInput label="Rotate" value={getVal(style.rotate, 0)} onChange={(v: number) => updateStyle('rotate', `${v}deg`)} />
                                 <NumberInput label="Scale" value={Number(style.scale) || 1} onChange={(v: number) => updateStyle('scale', v)} step={0.1} />
                             </div>
