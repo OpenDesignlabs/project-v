@@ -176,7 +176,7 @@ const generateNodeCode = (nodeId: string, project: VectraProject, imports: Impor
 export const generateProjectCode = (
     project: VectraProject,
     pages: Page[],
-    dataSources: DataSource[]
+    _dataSources: DataSource[]
 ): GeneratedFileMap => {
     const files: Record<string, string> = {};
     const allDependencies = new Set<string>();
