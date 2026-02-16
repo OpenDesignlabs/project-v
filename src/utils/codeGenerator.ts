@@ -1,491 +1,255 @@
-import type { VectraProject, VectraNode, Page } from '../types';
+import type { VectraProject, Page, DataSource } from '../types';
 
-// Registry for Special Components (Smart & Marketplace)
-const SPECIAL_COMPONENTS: Record<string, { name: string; path: string; isDefault?: boolean }> = {
-    // Smart Components
-    'accordion': { name: 'SmartAccordion', path: './SmartComponents' },
-    'carousel': { name: 'SmartCarousel', path: './SmartComponents' },
-    'table': { name: 'SmartTable', path: './SmartComponents' },
-
-    // Marketplace Components
-    'hero_geometric': { name: 'HeroGeometric', path: './HeroGeometric' },
-    'feature_hover': { name: 'FeaturesSectionWithHoverEffects', path: './FeatureHover' },
-    'geometric_bg': { name: 'GeometricShapesBackground', path: './GeometricShapes' },
-};
-
-export const copyToClipboard = async (text: string): Promise<boolean> => {
-    try { await navigator.clipboard.writeText(text); return true; } catch (err) { console.error('Failed to copy: ', err); return false; }
-};
-
-// Helper: Generate Framer Motion props string
-const getMotionProps = (node: VectraNode): string => {
-    const props: string[] = [];
-
-    // 1. Hover Effects
-    if (node.props.hoverEffect && node.props.hoverEffect !== 'none') {
-        if (node.props.hoverEffect === 'scale') props.push('whileHover={{ scale: 1.05 }}');
-        if (node.props.hoverEffect === 'lift') props.push('whileHover={{ y: -8 }}');
-        if (node.props.hoverEffect === 'glow') props.push('whileHover={{ boxShadow: "0 10px 40px -10px rgba(0,122,204,0.5)" }}');
-        if (node.props.hoverEffect === 'border') props.push('whileHover={{ borderColor: "#007acc" }}');
-        if (node.props.hoverEffect === 'opacity') props.push('whileHover={{ opacity: 0.7 }}');
-    }
-
-    // 2. Entry Animations
-    if (node.props.animation && node.props.animation !== 'none') {
-        if (node.props.animation === 'fade') {
-            props.push('initial={{ opacity: 0 }}');
-            props.push('animate={{ opacity: 1 }}');
-        }
-        if (node.props.animation === 'slide-up') {
-            props.push('initial={{ opacity: 0, y: 20 }}');
-            props.push('animate={{ opacity: 1, y: 0 }}');
-        }
-        if (node.props.animation === 'slide-left') {
-            props.push('initial={{ opacity: 0, x: -20 }}');
-            props.push('animate={{ opacity: 1, x: 0 }}');
-        }
-        if (node.props.animation === 'scale-in') {
-            props.push('initial={{ opacity: 0, scale: 0.9 }}');
-            props.push('animate={{ opacity: 1, scale: 1 }}');
-        }
-    }
-
-    // Add smooth transition if we have any motion props
-    if (props.length > 0) {
-        const duration = node.props.animationDuration !== undefined ? node.props.animationDuration : 0.3;
-        const delay = node.props.animationDelay !== undefined ? node.props.animationDelay : 0;
-        props.push(`transition={{ duration: ${duration}, delay: ${delay}, ease: "easeOut" }}`);
-    }
-
-    return props.join(' ');
-};
-
-// Check if node needs motion wrapper
-const needsMotion = (node: VectraNode): boolean => {
-    return (
-        (node.props.hoverEffect && node.props.hoverEffect !== 'none') ||
-        (node.props.animation && node.props.animation !== 'none')
-    );
-};
-
-export const generateCode = (elements: VectraProject, rootId: string): string => {
-
-    // Helper: Generate clean style object
-    const getCleanStyle = (node: VectraNode, parent: VectraNode | null): string => {
-        const style = { ...node.props.style };
-
-        // Remove positioning for flex children
-        if (parent?.props.layoutMode === 'flex') {
-            delete style.position; delete style.left; delete style.top; delete style.transform;
-        }
-
-        // Remove empty values and internal animation triggers
-        Object.keys(style).forEach(key => {
-            const k = key as keyof React.CSSProperties;
-            if (style[k] === undefined || style[k] === '' || style[k] === null) {
-                delete style[k];
-            }
-            // Remove internal animation state
-            if (key === 'animationName' || key.startsWith('--')) {
-                delete (style as any)[key];
-            }
-        });
-
-        const entries = Object.entries(style).map(([k, v]) => {
-            const value = typeof v === 'number' ? v : `"${v}"`;
-            return `${k}: ${value}`;
-        });
-
-        if (entries.length === 0) return '';
-        return ` style={{ ${entries.join(', ')} }}`;
-    };
-
-    // Helper: Generate Props string
-    const getPropsString = (node: VectraNode, parent: VectraNode | null) => {
-        let classes = node.props.className || '';
-
-        // Flex Layout Logic
-        if (node.props.layoutMode === 'flex') {
-            if (!classes.includes('flex')) classes = `flex ${classes}`;
-            if (node.props.stackOnMobile) {
-                if (classes.includes('flex-row')) classes = classes.replace('flex-row', 'flex-col md:flex-row');
-                else if (!classes.includes('flex-col')) classes += ' flex-col md:flex-row';
-            }
-        }
-
-        const classNameProp = classes ? ` className="${classes.trim()}"` : '';
-        const styleProp = getCleanStyle(node, parent);
-
-        return `${classNameProp}${styleProp}`;
-    };
-
-    // Track if we need framer-motion import
-    let hasMotion = false;
-
-    // Recursive Generator
-    const generateNode = (nodeId: string, indent: number, parentId: string | null): string => {
-        const node = elements[nodeId];
-        if (!node || node.hidden) return '';
-
-        const parent = parentId ? elements[parentId] : null;
-        const spaces = '  '.repeat(indent);
-        const propsStr = getPropsString(node, parent);
-
-        // Check for motion requirement
-        const isMotion = needsMotion(node);
-        if (isMotion) hasMotion = true;
-        const motionPropsStr = isMotion ? ` ${getMotionProps(node)}` : '';
-
-        // 1. Handle Special Components (Smart/Marketplace)
-        if (SPECIAL_COMPONENTS[node.type]) {
-            const compName = SPECIAL_COMPONENTS[node.type].name;
-            // Pass all props for smart components
-            return `${spaces}<${compName} {...${JSON.stringify(node.props)}} />\n`;
-        }
-
-        // 2. Handle Standard Elements with Motion support
-        if (node.type === 'text') {
-            const tag = isMotion ? 'motion.p' : 'p';
-            return `${spaces}<${tag}${propsStr}${motionPropsStr}>${node.content || ''}</${tag}>\n`;
-        }
-        if (node.type === 'heading') {
-            const tag = isMotion ? 'motion.h1' : 'h1';
-            return `${spaces}<${tag}${propsStr}${motionPropsStr}>${node.content || ''}</${tag}>\n`;
-        }
-        if (node.type === 'button') {
-            const tag = isMotion ? 'motion.button' : 'button';
-            return `${spaces}<${tag}${propsStr}${motionPropsStr}>${node.content || 'Button'}</${tag}>\n`;
-        }
-        if (node.type === 'link') {
-            const tag = isMotion ? 'motion.a' : 'a';
-            const href = node.props.href ? ` href="${node.props.href}"` : '';
-            return `${spaces}<${tag}${href}${propsStr}${motionPropsStr}>${node.content || 'Link'}</${tag}>\n`;
-        }
-
-        if (node.type === 'image') {
-            const src = node.src || 'https://via.placeholder.com/150';
-            const tag = isMotion ? 'motion.img' : 'img';
-            return `${spaces}<${tag} src="${src}" alt="${node.name}"${propsStr}${motionPropsStr} />\n`;
-        }
-
-        if (node.type === 'input') {
-            const placeholder = node.props.placeholder ? ` placeholder="${node.props.placeholder}"` : '';
-            const tag = isMotion ? 'motion.input' : 'input';
-            return `${spaces}<${tag} type="text"${propsStr}${placeholder}${motionPropsStr} />\n`;
-        }
-
-        if (node.type === 'checkbox') {
-            return `${spaces}<input type="checkbox"${propsStr} />\n`;
-        }
-
-        if (node.type === 'video') {
-            const src = node.src || '';
-            return `${spaces}<video src="${src}"${propsStr} controls />\n`;
-        }
-
-        if (node.type === 'icon') {
-            const name = node.props.iconName || 'Star';
-            return `${spaces}<${name} size={${node.props.iconSize || 24}}${propsStr} />\n`;
-        }
-
-        // 3. Handle Containers with Motion support
-        const hasChildren = node.children && node.children.length > 0;
-        let tag = (node.type === 'canvas' || node.type === 'webpage') ? 'main' : 'div';
-        if (node.type === 'section') tag = 'section';
-        if (node.type === 'card') tag = 'div';
-
-        // Apply motion prefix if needed
-        if (isMotion) tag = `motion.${tag}`;
-
-        if (!hasChildren) return `${spaces}<${tag}${propsStr}${motionPropsStr} />\n`;
-
-        const childrenCode = node.children!
-            .map(childId => generateNode(childId, indent + 1, nodeId))
-            .join('');
-
-        return `${spaces}<${tag}${propsStr}${motionPropsStr}>\n${childrenCode}${spaces}</${tag}>\n`;
-    };
-
-    // --- MAIN EXECUTION ---
-    let exportRootId = rootId;
-    const rootNode = elements[rootId];
-    if (rootNode?.type === 'page' && rootNode.children?.[0]) {
-        exportRootId = rootNode.children[0];
-    }
-
-    // Collect Imports
-    const iconImports = new Set<string>();
-    const specialImports = new Map<string, Set<string>>(); // path -> components
-
-    const collectImports = (id: string) => {
-        const n = elements[id];
-        if (!n) return;
-
-        // Check for motion
-        if (needsMotion(n)) hasMotion = true;
-
-        // Icons
-        if (n.type === 'icon' && n.props.iconName) iconImports.add(n.props.iconName);
-
-        // Special Components
-        if (SPECIAL_COMPONENTS[n.type]) {
-            const { name, path } = SPECIAL_COMPONENTS[n.type];
-            if (!specialImports.has(path)) specialImports.set(path, new Set());
-            specialImports.get(path)!.add(name);
-        }
-
-        n.children?.forEach(collectImports);
-    };
-    collectImports(exportRootId);
-
-    // Build Import Strings
-    let importsStr = "import React from 'react';\n";
-
-    // Framer Motion Import (only if needed)
-    if (hasMotion) {
-        importsStr += "import { motion } from 'framer-motion';\n";
-    }
-
-    // Lucide Imports
-    if (iconImports.size > 0) {
-        importsStr += `import { ${Array.from(iconImports).join(', ')} } from 'lucide-react';\n`;
-    }
-
-    // Special Component Imports
-    specialImports.forEach((names, path) => {
-        importsStr += `import { ${Array.from(names).join(', ')} } from '${path}';\n`;
-    });
-
-    const componentName = elements[exportRootId]?.name.replace(/[^a-zA-Z0-9]/g, '') || 'MyComponent';
-
-    return `${importsStr}
-export default function ${componentName}() {
-  return (
-${generateNode(exportRootId, 2, null)}  );
-}`;
-};
-
-// ==========================================================
-// MULTI-PAGE CODE GENERATION
-// ==========================================================
-
-/**
- * Generate a single page component for React Router
- */
-export const generatePageCode = (elements: VectraProject, rootId: string, componentName: string): string => {
-    const rootNode = elements[rootId];
-
-    // SAFETY: If page doesn't exist, return a valid fallback component
-    if (!rootNode) {
-        return `import React from 'react';
-
-export default function ${componentName}() {
-  return (
-    <div className="w-full min-h-screen bg-white flex items-center justify-center">
-      <p className="text-gray-400">Page not found: ${rootId}</p>
-    </div>
-  );
+export interface GeneratedFileMap {
+    files: Record<string, string>;
+    dependencies: Set<string>;
 }
-`;
+
+class ImportManager {
+    private imports: Map<string, Set<string>> = new Map();
+    public dependencies: Set<string> = new Set();
+
+    add(module: string, items: string | string[]) {
+        if (!module.startsWith('.') && module !== 'react') this.dependencies.add(module);
+        if (!this.imports.has(module)) this.imports.set(module, new Set());
+        const set = this.imports.get(module)!;
+        if (Array.isArray(items)) items.forEach(i => set.add(i));
+        else set.add(items);
     }
 
-    // Navigate to the actual content root:
-    // Page -> Canvas/Webpage (frame) -> Children
-    let contentRootId = rootId;
-
-    // If this is a 'page' node, get its first child (the canvas/frame)
-    if (rootNode.type === 'page' && rootNode.children?.[0]) {
-        contentRootId = rootNode.children[0];
-    }
-
-    const contentRoot = elements[contentRootId];
-
-    // Track imports
-    let hasMotion = false;
-    let hasLink = false;
-    const iconImports = new Set<string>();
-    const specialImports = new Map<string, Set<string>>();
-
-    // Helper functions
-    const getCleanStyle = (node: VectraNode, parent: VectraNode | null): string => {
-        const style = { ...node.props.style };
-        if (parent?.props.layoutMode === 'flex') {
-            delete style.position; delete style.left; delete style.top; delete style.transform;
-        }
-        Object.keys(style).forEach(key => {
-            const k = key as keyof React.CSSProperties;
-            if (style[k] === undefined || style[k] === '' || style[k] === null) delete style[k];
-            if (key === 'animationName' || key.startsWith('--')) delete (style as any)[key];
-        });
-        const entries = Object.entries(style).map(([k, v]) => {
-            const value = typeof v === 'number' ? v : `"${v}"`;
-            return `${k}: ${value}`;
-        });
-        if (entries.length === 0) return '';
-        return ` style={{ ${entries.join(', ')} }}`;
-    };
-
-    const getPropsString = (node: VectraNode, parent: VectraNode | null) => {
-        let classes = node.props.className || '';
-        if (node.props.layoutMode === 'flex') {
-            if (!classes.includes('flex')) classes = `flex ${classes}`;
-            if (node.props.stackOnMobile) {
-                if (classes.includes('flex-row')) classes = classes.replace('flex-row', 'flex-col md:flex-row');
-                else if (!classes.includes('flex-col')) classes += ' flex-col md:flex-row';
-            }
-        }
-        const classNameProp = classes ? ` className="${classes.trim()}"` : '';
-        const styleProp = getCleanStyle(node, parent);
-        return `${classNameProp}${styleProp}`;
-    };
-
-    const getMotionProps = (node: VectraNode): string => {
-        const props: string[] = [];
-        if (node.props.hoverEffect && node.props.hoverEffect !== 'none') {
-            if (node.props.hoverEffect === 'scale') props.push('whileHover={{ scale: 1.05 }}');
-            if (node.props.hoverEffect === 'lift') props.push('whileHover={{ y: -8 }}');
-            if (node.props.hoverEffect === 'glow') props.push('whileHover={{ boxShadow: "0 10px 40px -10px rgba(0,122,204,0.5)" }}');
-        }
-        if (node.props.animation && node.props.animation !== 'none') {
-            if (node.props.animation === 'fade') { props.push('initial={{ opacity: 0 }}'); props.push('animate={{ opacity: 1 }}'); }
-            if (node.props.animation === 'slide-up') { props.push('initial={{ opacity: 0, y: 20 }}'); props.push('animate={{ opacity: 1, y: 0 }}'); }
-        }
-        if (props.length > 0) {
-            const duration = node.props.animationDuration !== undefined ? node.props.animationDuration : 0.3;
-            props.push(`transition={{ duration: ${duration}, ease: "easeOut" }}`);
-        }
-        return props.join(' ');
-    };
-
-    const needsMotionCheck = (node: VectraNode): boolean => {
-        return (node.props.hoverEffect && node.props.hoverEffect !== 'none') ||
-            (node.props.animation && node.props.animation !== 'none');
-    };
-
-    const generateNode = (nodeId: string, indent: number, parentId: string | null): string => {
-        const node = elements[nodeId];
-        if (!node || node.hidden) return '';
-
-        const parent = parentId ? elements[parentId] : null;
-        const spaces = '  '.repeat(indent);
-        const propsStr = getPropsString(node, parent);
-        const isMotion = needsMotionCheck(node);
-        if (isMotion) hasMotion = true;
-        const motionPropsStr = isMotion ? ` ${getMotionProps(node)}` : '';
-
-        // Check for Link/Navigation
-        const linkTo = node.props.linkTo;
-        if (linkTo) hasLink = true;
-
-        // Generate element code
-        let elementCode = '';
-
-        if (SPECIAL_COMPONENTS[node.type]) {
-            const compName = SPECIAL_COMPONENTS[node.type].name;
-            elementCode = `${spaces}<${compName} {...${JSON.stringify(node.props)}} />\n`;
-            const { name, path } = SPECIAL_COMPONENTS[node.type];
-            if (!specialImports.has(path)) specialImports.set(path, new Set());
-            specialImports.get(path)!.add(name);
-        } else if (node.type === 'text') {
-            const tag = isMotion ? 'motion.p' : 'p';
-            elementCode = `${spaces}<${tag}${propsStr}${motionPropsStr}>${node.content || ''}</${tag}>\n`;
-        } else if (node.type === 'heading') {
-            const tag = isMotion ? 'motion.h1' : 'h1';
-            elementCode = `${spaces}<${tag}${propsStr}${motionPropsStr}>${node.content || ''}</${tag}>\n`;
-        } else if (node.type === 'button') {
-            const tag = isMotion ? 'motion.button' : 'button';
-            elementCode = `${spaces}<${tag}${propsStr}${motionPropsStr}>${node.content || 'Button'}</${tag}>\n`;
-        } else if (node.type === 'image') {
-            const src = node.src || 'https://via.placeholder.com/150';
-            const tag = isMotion ? 'motion.img' : 'img';
-            elementCode = `${spaces}<${tag} src="${src}" alt="${node.name}"${propsStr}${motionPropsStr} />\n`;
-        } else if (node.type === 'input') {
-            const placeholder = node.props.placeholder ? ` placeholder="${node.props.placeholder}"` : '';
-            elementCode = `${spaces}<input type="text"${propsStr}${placeholder} />\n`;
-        } else if (node.type === 'icon' && node.props.iconName) {
-            iconImports.add(node.props.iconName);
-            elementCode = `${spaces}<${node.props.iconName} size={${node.props.iconSize || 24}}${propsStr} />\n`;
-        } else {
-            // Container types (div, section, canvas, webpage, etc.)
-            const hasChildren = node.children && node.children.length > 0;
-            let tag = 'div';
-            if (node.type === 'canvas' || node.type === 'webpage') tag = 'div';
-            if (node.type === 'section') tag = 'section';
-            if (isMotion) tag = `motion.${tag}`;
-
-            if (!hasChildren) {
-                elementCode = `${spaces}<${tag}${propsStr}${motionPropsStr} />\n`;
+    generate(): string {
+        let code = `import React from 'react';\n`;
+        this.imports.forEach((items, module) => {
+            const list = Array.from(items);
+            const defaultEntry = list.find(i => i.startsWith('default:'));
+            if (defaultEntry) {
+                code += `import ${defaultEntry.split(':')[1]} from '${module}';\n`;
+            } else if (list.includes('*')) {
+                const name = list.find(i => i.startsWith('* as ')) || '*';
+                code += `import ${name} from '${module}';\n`;
             } else {
-                const childrenCode = node.children!.map(childId => generateNode(childId, indent + 1, nodeId)).join('');
-                elementCode = `${spaces}<${tag}${propsStr}${motionPropsStr}>\n${childrenCode}${spaces}</${tag}>\n`;
+                code += `import { ${list.join(', ')} } from '${module}';\n`;
             }
-        }
-
-        // Wrap in Link if linkTo is set
-        if (linkTo) {
-            return `${spaces}<Link to="${linkTo}" className="contents">\n${elementCode}${spaces}</Link>\n`;
-        }
-
-        return elementCode;
-    };
-
-    // Generate content from the canvas's CHILDREN, not the canvas itself
-    // (The canvas is just a design-time container, we want its contents)
-    let content = '';
-    if (contentRoot && contentRoot.children && contentRoot.children.length > 0) {
-        content = contentRoot.children.map(childId => generateNode(childId, 3, contentRootId)).join('');
+        });
+        return code;
     }
-
-    // If page is empty, add a placeholder
-    if (!content.trim()) {
-        content = '      {/* Empty page - add elements in the editor */}\n';
-    }
-
-    // Build imports
-    let importsStr = "import React from 'react';\n";
-    if (hasLink) importsStr += "import { Link } from 'react-router-dom';\n";
-    if (hasMotion) importsStr += "import { motion } from 'framer-motion';\n";
-    if (iconImports.size > 0) importsStr += `import { ${Array.from(iconImports).join(', ')} } from 'lucide-react';\n`;
-    specialImports.forEach((names, path) => {
-        importsStr += `import { ${Array.from(names).join(', ')} } from '${path}';\n`;
-    });
-
-    return `${importsStr}
-export default function ${componentName}() {
-  return (
-    <div className="w-full min-h-screen bg-white relative overflow-x-hidden">
-${content}    </div>
-  );
 }
-`;
+
+const cleanClass = (c: string) => c ? c.replace(/\s+/g, ' ').trim() : '';
+const injectBindings = (t: string) => t ? t.replace(/{{([^}]+)}}/g, (_, p) => `{data?.${p.split('.').join('?.')} ?? ''}`) : '';
+
+const serializeStyle = (styleObj: any) => {
+    if (!styleObj || Object.keys(styleObj).length === 0) return '';
+    const clean: any = {};
+    Object.entries(styleObj).forEach(([k, v]) => { if (v !== undefined && v !== '' && k !== 'animationName') clean[k] = v; });
+    return Object.keys(clean).length ? `style={${JSON.stringify(clean)}}` : '';
 };
 
+const generateMotionProps = (props: any): string[] => {
+    const motionAttributes: string[] = [];
 
-/**
- * Generate the main App.tsx with React Router
- */
-export const generateRouterApp = (pages: Page[]): string => {
-    const imports = pages.map(p => {
-        const componentName = p.name.replace(/[^a-zA-Z0-9]/g, '');
-        return `import ${componentName} from './pages/${componentName}';`;
-    }).join('\n');
+    if (props.hoverEffect && props.hoverEffect !== 'none') {
+        let hoverObj = '';
+        switch (props.hoverEffect) {
+            case 'lift': hoverObj = '{ y: -5 }'; break;
+            case 'scale': hoverObj = '{ scale: 1.05 }'; break;
+            case 'glow': hoverObj = '{ boxShadow: "0 0 15px rgba(59, 130, 246, 0.6)" }'; break;
+            case 'border': hoverObj = '{ borderColor: "#3b82f6", borderWidth: "1px", borderStyle: "solid" }'; break;
+            case 'opacity': hoverObj = '{ opacity: 0.7 }'; break;
+        }
+        if (hoverObj) motionAttributes.push(`whileHover={${hoverObj}}`);
+        motionAttributes.push(`transition={{ type: "spring", stiffness: 300, damping: 20 }}`);
+    }
 
-    const routes = pages.map(p => {
-        const componentName = p.name.replace(/[^a-zA-Z0-9]/g, '');
-        return `        <Route path="${p.slug}" element={<${componentName} />} />`;
-    }).join('\n');
+    if (props.animation && props.animation !== 'none') {
+        const dur = props.animationDuration || 0.5;
+        const dly = props.animationDelay || 0;
 
-    return `import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-${imports}
+        if (!motionAttributes.some(p => p.startsWith('transition'))) {
+            motionAttributes.push(`transition={{ duration: ${dur}, delay: ${dly}, ease: "easeOut" }}`);
+        }
+
+        switch (props.animation) {
+            case 'fade':
+                motionAttributes.push(`initial={{ opacity: 0 }}`);
+                motionAttributes.push(`animate={{ opacity: 1 }}`);
+                break;
+            case 'slide-up':
+                motionAttributes.push(`initial={{ opacity: 0, y: 30 }}`);
+                motionAttributes.push(`animate={{ opacity: 1, y: 0 }}`);
+                break;
+            case 'slide-left':
+                motionAttributes.push(`initial={{ opacity: 0, x: -30 }}`);
+                motionAttributes.push(`animate={{ opacity: 1, x: 0 }}`);
+                break;
+            case 'scale-in':
+                motionAttributes.push(`initial={{ opacity: 0, scale: 0.8 }}`);
+                motionAttributes.push(`animate={{ opacity: 1, scale: 1 }}`);
+                break;
+        }
+    }
+
+    return motionAttributes;
+};
+
+const generateNodeCode = (nodeId: string, project: VectraProject, imports: ImportManager, depth: number): string => {
+    const node = project[nodeId];
+    if (!node) return '';
+    const indent = '  '.repeat(depth);
+
+    let tagName = 'div';
+    let content = '';
+    const isComponent = ['hero_geometric', 'feature_hover', 'geometric_shapes'].includes(node.type);
+
+    if (isComponent) {
+        const name = node.type.split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
+        tagName = name;
+        imports.add(`../components/marketplace/${name}`, `default:${name}`);
+    } else {
+        switch (node.type) {
+            case 'text': tagName = 'p'; content = injectBindings(node.content || ''); break;
+            case 'heading': tagName = 'h1'; content = injectBindings(node.content || ''); break;
+            case 'image': tagName = 'img'; break;
+            case 'input': tagName = 'input'; break;
+            case 'button': tagName = 'button'; content = node.content || 'Click'; break;
+            case 'icon':
+                tagName = `Lucide.${node.props.iconName || 'HelpCircle'}`;
+                imports.add('lucide-react', '* as Lucide');
+                break;
+        }
+    }
+
+    const motionProps = generateMotionProps(node.props);
+    const hasMotion = motionProps.length > 0;
+
+    if (hasMotion && !tagName.includes('.') && !isComponent) {
+        imports.add('framer-motion', 'motion');
+        tagName = `motion.${tagName}`;
+    }
+
+    const props: string[] = [];
+    if (node.props.className) props.push(`className="${cleanClass(node.props.className)}"`);
+    const styleStr = serializeStyle(node.props.style);
+    if (styleStr) props.push(styleStr);
+
+    if (node.type === 'image') props.push(`src="${node.src || 'https://via.placeholder.com/150'}"`);
+    if (node.type === 'input') props.push(`placeholder="${node.props.placeholder || ''}"`);
+
+    if (isComponent) {
+        Object.entries(node.props).forEach(([k, v]) => {
+            if (['className', 'style', 'children'].includes(k)) return;
+            if (typeof v === 'string') props.push(`${k}="${v}"`);
+            else if (typeof v === 'number' || typeof v === 'boolean') props.push(`${k}={${v}}`);
+        });
+    }
+
+    props.push(...motionProps);
+
+    let childrenCode = '';
+    if (node.children && !isComponent) {
+        childrenCode = node.children.map((cid: string) => generateNodeCode(cid, project, imports, depth + 1)).join('');
+    }
+
+    const propsStr = props.length ? ' ' + props.join(' ') : '';
+    let code = '';
+
+    if (['img', 'input', 'hr', 'br'].includes(node.type) || (tagName.includes('Lucide') && !hasMotion)) {
+        code = `${indent}<${tagName}${propsStr} />\n`;
+    } else {
+        const safeContent = content ? `\n${indent}  ${content}` : '';
+        const safeChildren = childrenCode ? `\n${childrenCode}${indent}` : '';
+        if (!safeContent && !safeChildren) {
+            code = `${indent}<${tagName}${propsStr} />\n`;
+        } else {
+            code = `${indent}<${tagName}${propsStr}>${safeContent}${safeChildren}</${tagName}>\n`;
+        }
+    }
+
+    if (node.props.linkTo) {
+        imports.add('react-router-dom', 'Link');
+        return `${indent}<Link to="${node.props.linkTo}" className="contents">\n${code}${indent}</Link>\n`;
+    }
+
+    return code;
+};
+
+export const generateProjectCode = (
+    project: VectraProject,
+    pages: Page[],
+    dataSources: DataSource[]
+): GeneratedFileMap => {
+    const files: Record<string, string> = {};
+    const allDependencies = new Set<string>();
+
+    allDependencies.add('react');
+    allDependencies.add('react-dom');
+    allDependencies.add('react-router-dom');
+    allDependencies.add('clsx');
+    allDependencies.add('tailwind-merge');
+
+    pages.forEach(page => {
+        const compName = page.name.replace(/[^a-zA-Z0-9]/g, '');
+        const imports = new ImportManager();
+        const rootNode = project[page.rootId];
+
+        let rootFrameId = rootNode?.children?.find(cid => project[cid]?.type === 'webpage');
+        if (!rootFrameId && rootNode?.children?.length) rootFrameId = rootNode.children[0];
+
+        let jsxContent = '';
+        if (rootFrameId) {
+            if (project[rootFrameId].children) {
+                jsxContent = project[rootFrameId].children!.map((cid: string) => generateNodeCode(cid, project, imports, 3)).join('');
+            }
+        } else {
+            jsxContent = `      <div className="text-center p-10">Empty Page</div>`;
+        }
+
+        const code = `${imports.generate()}
+
+export default function ${compName}() {
+  return (
+    <div className="min-h-screen bg-white">
+${jsxContent}    </div>
+  );
+}`;
+        files[`src/pages/${compName}.tsx`] = code;
+        imports.dependencies.forEach(d => allDependencies.add(d));
+    });
+
+    const routerImports = new ImportManager();
+    routerImports.add('react-router-dom', ['BrowserRouter', 'Routes', 'Route']);
+
+    const routeJSX = pages.map(p => {
+        const name = p.name.replace(/[^a-zA-Z0-9]/g, '');
+        routerImports.add(`./pages/${name}`, `default:${name}`);
+        return `<Route path="${p.slug}" element={<${name} />} />`;
+    }).join('\n        ');
+
+    files['src/App.tsx'] = `${routerImports.generate()}
 
 export default function App() {
   return (
-    <Routes>
-${routes}
-        <Route path="*" element={<div className="flex items-center justify-center h-screen text-xl text-gray-500">404 - Page Not Found</div>} />
-    </Routes>
+    <BrowserRouter>
+      <Routes>
+        ${routeJSX}
+      </Routes>
+    </BrowserRouter>
   );
-}
-`;
+}`;
+
+    return { files, dependencies: allDependencies };
+};
+
+export const generateCode = (project: VectraProject, rootId: string): string => {
+    return generateNodeCode(rootId, project, new ImportManager(), 0);
+};
+
+export const copyToClipboard = async (text: string): Promise<boolean> => {
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    } catch (err) {
+        console.error('Failed to copy: ', err);
+        return false;
+    }
 };

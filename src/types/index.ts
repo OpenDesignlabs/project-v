@@ -35,7 +35,7 @@ export interface VectraNode {
     props: {
         className?: string;
         style?: React.CSSProperties;
-        layoutMode?: 'canvas' | 'flex';
+        layoutMode?: 'canvas' | 'flex' | 'grid';
         stackOnMobile?: boolean;
         placeholder?: string;
         iconName?: string;
@@ -78,7 +78,7 @@ export interface ComponentConfig {
 }
 
 export interface DragData {
-    type: 'NEW' | 'TEMPLATE' | 'ASSET' | 'ASSET_IMAGE';
+    type: 'NEW' | 'TEMPLATE' | 'ASSET' | 'ASSET_IMAGE' | 'ICON' | 'DATA_BINDING';
     payload: string;
     meta?: any;
     dropIndex?: number;
@@ -95,10 +95,18 @@ export interface InteractionState {
 }
 
 export type EditorTool = 'select' | 'hand' | 'type';
-export type DeviceType = 'desktop' | 'mobile';
+export type DeviceType = 'desktop' | 'tablet' | 'mobile';
 
 // View Mode: Visual (Design) vs Skeleton (Layout)
 export type ViewMode = 'visual' | 'skeleton';
+
+export interface DataSource {
+    id: string;
+    name: string;
+    url: string;
+    method: 'GET' | 'POST';
+    data: any; // The sample JSON response schema
+}
 
 export interface EditorContextType {
     elements: VectraProject;
@@ -139,7 +147,26 @@ export interface EditorContextType {
     deleteElement: (id: string) => void;
     history: { undo: () => void; redo: () => void };
     runAction: (action: ActionType) => void;
-    // Insert Drawer State
     isInsertDrawerOpen: boolean;
     toggleInsertDrawer: () => void;
+    activePanel: string | null;
+    setActivePanel: (panel: string | null) => void;
+    togglePanel: (panel: string | null) => void;
+    componentRegistry: Record<string, ComponentConfig>;
+    registerComponent: (id: string, config: ComponentConfig) => void;
+    instantiateTemplate: (rootId: string, nodes: VectraProject) => { newNodes: VectraProject; rootId: string };
+    recentComponents: string[];
+    addRecentComponent: (id: string) => void;
+    currentView: 'dashboard' | 'editor';
+    setCurrentView: (view: 'dashboard' | 'editor') => void;
+    createNewProject: (templateId: string) => void;
+    exitProject: () => void;
+    theme: any;
+    updateTheme: (updates: any) => void;
+    dataSources: DataSource[];
+    addDataSource: (ds: DataSource) => void;
+    removeDataSource: (id: string) => void;
+    realPageId: string;
+    isMagicBarOpen: boolean;
+    setMagicBarOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }

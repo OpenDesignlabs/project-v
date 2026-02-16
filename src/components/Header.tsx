@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useEditor } from '../context/EditorContext';
+import { useContainer } from '../context/ContainerContext';
 import { generateCode, copyToClipboard } from '../utils/codeGenerator';
 import { INITIAL_DATA, STORAGE_KEY } from '../data/constants';
 import {
     Play, Undo, Redo, Code,
     Check, X, Copy, Trash2,
-    Layers, Palette, RotateCcw, Home
+    Layers, Palette, RotateCcw, Home, Wand2, Download
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -13,8 +14,9 @@ export const Header = () => {
     const {
         history, previewMode, setPreviewMode, elements, setElements,
         activePageId, setSelectedId, viewMode, setViewMode, selectedId,
-        deleteElement, exitProject
+        deleteElement, exitProject, setMagicBarOpen
     } = useEditor();
+    const { status } = useContainer();
     const [showCode, setShowCode] = useState(false);
     const [code, setCode] = useState('');
     const [copied, setCopied] = useState(false);
@@ -100,8 +102,8 @@ export const Header = () => {
                     </button>
                 </div>
 
-                {/* CENTER: View Switcher */}
-                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+                {/* CENTER: View Switcher & Device Toggles */}
+                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
 
                     {/* View Mode (Layout | Design)  */}
                     <div className="flex items-center bg-[#252526] rounded-md p-0.5 border border-[#3e3e42]">
@@ -134,6 +136,18 @@ export const Header = () => {
                         <button onClick={history.redo} className="p-2 hover:bg-[#3e3e42] hover:text-white rounded text-[#858585] transition-colors" title="Redo"><Redo size={14} /></button>
                     </div>
 
+                    {/* AI Magic Bar Toggle */}
+                    <button
+                        onClick={() => setMagicBarOpen(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-[#7c3aed] to-[#2563eb] text-white rounded text-[10px] font-black hover:shadow-lg transition-all border border-white/10 group active:scale-95"
+                    >
+                        <Wand2 size={12} className="group-hover:rotate-12 transition-transform" />
+                        <span className="hidden lg:inline uppercase tracking-tight">Ask AI</span>
+                        <span className="text-[8px] opacity-40 font-mono hidden xl:inline border border-white/20 px-1 rounded ml-1 group-hover:opacity-100">⌘K</span>
+                    </button>
+
+                    <div className="h-4 w-px bg-[#3e3e42] mx-1" />
+
                     {/* Delete Button */}
                     <button
                         onClick={() => {
@@ -160,11 +174,26 @@ export const Header = () => {
                         <Code size={16} />
                     </button>
 
+                    {/* Download Button */}
+                    <button className="p-2 text-[#858585] hover:text-white hover:bg-[#3e3e42] rounded transition-colors" title="Download Assets">
+                        <Download size={16} />
+                    </button>
+
+                    <div className="h-4 w-px bg-[#3e3e42] mx-2" />
+
+                    {/* WebContainer Status Indicator */}
+                    <div className="flex items-center gap-2 mr-2">
+                        <span className={`w-2 h-2 rounded-full ${status === 'ready' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-yellow-500 animate-pulse'}`} />
+                        <span className="text-xs text-zinc-500 font-mono uppercase tracking-wider">
+                            {status === 'ready' ? 'Ready' : 'Building...'}
+                        </span>
+                    </div>
+
                     {/* Preview Button (Primary Action) */}
                     <button
                         onClick={togglePreview}
                         className={cn(
-                            "flex items-center gap-2 px-3 py-1.5 rounded ml-2 text-xs font-bold transition-all",
+                            "flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition-all",
                             previewMode
                                 ? 'bg-[#007acc] text-white hover:bg-[#0063a5] shadow-sm'
                                 : 'bg-[#252526] text-[#cccccc] border border-[#3e3e42] hover:border-[#007acc] hover:text-[#007acc]'

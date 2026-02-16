@@ -6,17 +6,15 @@ import { removeClasses } from '../utils/tailwindHelpers';
 import {
     AlignLeft, AlignCenter, AlignRight, AlignJustify,
     Grid, Box, Maximize, Lock, Eye,
-    Type, ArrowRight, ArrowDown, Image as ImageIcon, PaintBucket, RotateCw, Layers, MousePointer2,
+    Type, ArrowRight, ArrowDown, Image as ImageIcon, PaintBucket, RotateCw, MousePointer2,
     Hand, Settings, Layout, Hash, Type as TypeIcon,
-    MoveHorizontal, MoveVertical, Droplets, Sun,
-    CornerUpLeft, CornerUpRight, CornerDownLeft, CornerDownRight,
-    Monitor, Sparkles
+    MoveHorizontal, MoveVertical, Droplets, Sun, Move,
+    CornerUpLeft, CornerUpRight, CornerDownLeft, CornerDownRight, Layers
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 // --- TYPES ---
 type Tab = 'design' | 'interact' | 'settings';
-type DesignState = 'base' | 'hover' | 'focus';
 type FillMode = 'solid' | 'gradient' | 'image';
 
 // --- SUB-COMPONENTS ---
@@ -25,7 +23,7 @@ const TabButton = ({ active, onClick, icon: Icon, label }: { active: boolean; on
         onClick={onClick}
         className={cn(
             "flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold uppercase tracking-wider border-b-2 transition-all",
-            active ? "border-[#007acc] text-white bg-[#1e1e1e]" : "border-transparent text-[#666] hover:text-[#999] hover:bg-[#252526]"
+            active ? "border-[#007acc] text-white bg-[#2d2d2d]" : "border-transparent text-[#666] hover:text-[#999] hover:bg-[#3d3d3d]"
         )}
     >
         <Icon size={14} />
@@ -47,90 +45,30 @@ const RangeControl = ({ label, value, max, min = 0, onChange, unit = '' }: { lab
     </div>
 );
 
-const InputUnit = ({ label, icon: Icon, value, onChange }: { label: string; icon: any; value: number; onChange: (v: number) => void }) => (
+const InputUnit = ({ label, icon: Icon, value, onChange, step, unit }: { label: string; icon: any; value: number; onChange: (v: number) => void; step?: number; unit?: string }) => (
     <div className="bg-[#2a2a2c] p-2 rounded border border-[#333] flex items-center justify-between">
         <div className="flex items-center gap-2 text-[#888]">
             <Icon size={12} />
             <span className="text-[9px] uppercase font-semibold">{label}</span>
         </div>
-        <input
-            type="number"
-            className="w-12 bg-transparent text-right text-xs text-white outline-none border-b border-transparent focus:border-blue-500"
-            value={value}
-            onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-        />
+        <div className="flex items-center gap-0.5">
+            <input
+                type="number"
+                step={step || 1}
+                className="w-12 bg-transparent text-right text-xs text-white outline-none border-b border-transparent focus:border-blue-500"
+                value={value}
+                onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+            />
+            {unit && <span className="text-[9px] text-[#666]">{unit}</span>}
+        </div>
     </div>
 );
-
-const ProjectSettings = () => {
-    const { globalStyles, setGlobalStyles } = useEditor();
-
-    return (
-        <div className="flex flex-col h-full bg-[#1e1e1e]">
-            <div className="p-4 border-b border-[#252526]">
-                <h2 className="text-xs font-bold text-[#cccccc] uppercase tracking-wider flex items-center gap-2">
-                    <Settings size={14} className="text-[#007acc]" /> Project Settings
-                </h2>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <Section title="Global Appearance">
-                    <Row label="Background">
-                        <ColorInput
-                            value={globalStyles?.colors?.dark || '#1e1e1e'}
-                            onChange={(v) => setGlobalStyles((prev: typeof globalStyles) => ({ ...prev, colors: { ...prev?.colors, dark: v } }))}
-                        />
-                    </Row>
-                    <Row label="Primary">
-                        <ColorInput
-                            value={globalStyles?.colors?.primary || '#007acc'}
-                            onChange={(v) => setGlobalStyles((prev: typeof globalStyles) => ({ ...prev, colors: { ...prev?.colors, primary: v } }))}
-                        />
-                    </Row>
-                </Section>
-
-                <Section title="Typography">
-                    <Row label="Base Font">
-                        <SelectInput
-                            value={globalStyles?.fonts?.body || 'Inter'}
-                            onChange={(v: string) => setGlobalStyles((prev: typeof globalStyles) => ({ ...prev, fonts: { ...prev?.fonts, body: v } }))}
-                            options={[
-                                { value: 'Inter', label: 'Inter' },
-                                { value: 'Roboto', label: 'Roboto' },
-                                { value: 'Open Sans', label: 'Open Sans' },
-                                { value: 'Playfair Display', label: 'Playfair' },
-                                { value: 'monospace', label: 'Monospace' },
-                            ]}
-                        />
-                    </Row>
-                </Section>
-
-                <Section title="Editor">
-                    <div className="p-3 bg-[#252526] rounded border border-[#3e3e42] space-y-2">
-                        <div className="flex items-center justify-between text-xs text-[#ccc]">
-                            <span>Snap to Grid</span>
-                            <div className="w-8 h-4 bg-[#007acc] rounded-full relative cursor-pointer">
-                                <div className="absolute right-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow-sm" />
-                            </div>
-                        </div>
-                        <Row label="Grid Size">
-                            <NumberInput value={8} onChange={() => { }} />
-                        </Row>
-                    </div>
-                </Section>
-            </div>
-            <div className="p-4 border-t border-[#252526] text-[10px] text-[#555] text-center">
-                Vectra Engine v1.0.0
-            </div>
-        </div>
-    );
-};
 
 export const RightSidebar = () => {
     const { elements, selectedId, updateProject, previewMode, pages } = useEditor();
     const [activeTab, setActiveTab] = useState<Tab>('design');
     const [fillMode, setFillMode] = useState<FillMode>('solid');
     const [animScope, setAnimScope] = useState<'single' | 'all'>('single');
-    const [designState, setDesignState] = useState<DesignState>('base');
 
     // Local state for glassmorphism effects
     const [blur, setBlur] = useState(0);
@@ -140,10 +78,17 @@ export const RightSidebar = () => {
     // Local state for gradient picker
     const [colorPickerValue, setColorPickerValue] = useState('rgba(255,255,255,1)');
 
-    // Get element BEFORE useEffect to ensure hook count is consistent
+    // Local state for transforms
+    const [rotate, setRotate] = useState(0);
+    const [scale, setScale] = useState(1);
+    const [skewX, setSkewX] = useState(0);
+    const [skewY, setSkewY] = useState(0);
+    const [translateX, setTranslateX] = useState(0);
+    const [translateY, setTranslateY] = useState(0);
+
+    // Get element
     const element = selectedId ? elements[selectedId] : null;
 
-    // --- FIX: useEffect is now UNCONDITIONAL (runs every render, even if previewMode is true) ---
     useEffect(() => {
         if (!element) return;
         const style = element.props.style || {};
@@ -154,30 +99,40 @@ export const RightSidebar = () => {
         const brightMatch = bf.match(/brightness\(([\d.]+)\)/);
         const contMatch = bf.match(/contrast\(([\d.]+)\)/);
 
-        if (blurMatch) setBlur(parseInt(blurMatch[1]));
-        else setBlur(0);
-        if (brightMatch) setBrightness(Math.round(parseFloat(brightMatch[1]) * 100));
-        else setBrightness(100);
-        if (contMatch) setContrast(Math.round(parseFloat(contMatch[1]) * 100));
-        else setContrast(100);
+        if (blurMatch) setBlur(parseInt(blurMatch[1])); else setBlur(0);
+        if (brightMatch) setBrightness(Math.round(parseFloat(brightMatch[1]) * 100)); else setBrightness(100);
+        if (contMatch) setContrast(Math.round(parseFloat(contMatch[1]) * 100)); else setContrast(100);
 
-        // Set color picker value from style
-        if (style.background) {
-            setColorPickerValue(String(style.background));
-        } else if (style.backgroundColor) {
-            setColorPickerValue(String(style.backgroundColor));
-        }
+        // Set color picker value
+        if (style.background) setColorPickerValue(String(style.background));
+        else if (style.backgroundColor) setColorPickerValue(String(style.backgroundColor));
+
+        // Parse Transforms
+        const transform = String(style.transform || '');
+        const rotMatch = transform.match(/rotate\(([\d.-]+)deg\)/);
+        const scMatch = transform.match(/scale\(([\d.-]+)\)/);
+        const skXMatch = transform.match(/skewX\(([\d.-]+)deg\)/);
+        const skYMatch = transform.match(/skewY\(([\d.-]+)deg\)/);
+        const trMatch = transform.match(/translate\(([\d.-]+)px,\s*([\d.-]+)px\)/);
+
+        setRotate(rotMatch ? parseFloat(rotMatch[1]) : 0);
+        setScale(scMatch ? parseFloat(scMatch[1]) : 1);
+        setSkewX(skXMatch ? parseFloat(skXMatch[1]) : 0);
+        setSkewY(skYMatch ? parseFloat(skYMatch[1]) : 0);
+        if (trMatch) { setTranslateX(parseFloat(trMatch[1])); setTranslateY(parseFloat(trMatch[2])); }
+        else { setTranslateX(0); setTranslateY(0); }
 
     }, [element?.id]);
 
-    // --- FIX: Early returns AFTER all hooks ---
     if (previewMode) return null;
 
-    // --- EMPTY STATE -> PROJECT SETTINGS ---
+    // --- EMPTY STATE (Replaced Project Settings) ---
     if (!element) {
         return (
-            <div className="w-[300px] bg-[#1e1e1e] border-l border-[#252526] h-full flex flex-col">
-                <ProjectSettings />
+            <div className="w-[320px] bg-[#333333] border-l border-[#252526] h-full flex flex-col items-center justify-center text-center p-6 text-[#666]">
+                <MousePointer2 size={48} className="mb-4 opacity-20" />
+                <h3 className="text-sm font-bold text-[#888] mb-2">No Selection</h3>
+                <p className="text-xs max-w-[200px]">Select an element on the canvas to edit its properties.</p>
             </div>
         );
     }
@@ -222,13 +177,25 @@ export const RightSidebar = () => {
         setBlur(newBlur);
         setBrightness(newBright);
         setContrast(newCont);
-
         const parts = [];
         if (newBlur > 0) parts.push(`blur(${newBlur}px)`);
         if (newBright !== 100) parts.push(`brightness(${newBright / 100})`);
         if (newCont !== 100) parts.push(`contrast(${newCont / 100})`);
-
         updateStyle('backdropFilter', parts.length > 0 ? parts.join(' ') : 'none');
+    };
+
+    const updateTransform = () => {
+        const parts = [];
+        if (rotate !== 0) parts.push(`rotate(${rotate}deg)`);
+        if (scale !== 1) parts.push(`scale(${scale})`);
+        if (skewX !== 0) parts.push(`skewX(${skewX}deg)`);
+        if (skewY !== 0) parts.push(`skewY(${skewY}deg)`);
+        if (translateX !== 0 || translateY !== 0) parts.push(`translate(${translateX}px, ${translateY}px)`);
+        updateStyle('transform', parts.length > 0 ? parts.join(' ') : 'none');
+    };
+
+    const handleGridChange = (key: string, val: number) => {
+        updateStyle(key, `repeat(${val}, 1fr)`);
     };
 
     const style = element.props.style || {};
@@ -238,31 +205,31 @@ export const RightSidebar = () => {
     const handleBoxModelChange = (field: string, value: string) => updateStyle(field, parseInt(value) || 0);
 
     return (
-        <div className="w-[320px] bg-[#1e1e1e] border-l border-[#252526] h-full flex flex-col">
+        <div className="w-[320px] bg-[#333333] border-l border-[#252526] h-full flex flex-col">
 
             {/* IDENTITY HEADER */}
-            <div className="p-3 border-b border-[#252526] bg-[#1e1e1e]">
+            <div className="p-3 border-b border-[#252526] bg-[#333333]">
                 <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-[10px] font-bold bg-[#007acc] text-white px-1.5 py-0.5 rounded uppercase flex items-center gap-1 truncate max-w-[120px]">
                         {element.type === 'text' ? <Type size={10} /> : <Box size={10} />}
                         {element.type}
                     </span>
                     <div className="flex gap-1">
-                        <button onClick={() => updateProject({ ...elements, [element.id]: { ...element, locked: !element.locked } })} className={cn("p-1 rounded hover:bg-[#333]", element.locked ? "text-red-400" : "text-[#666]")}><Lock size={12} /></button>
-                        <button onClick={() => updateProject({ ...elements, [element.id]: { ...element, hidden: !element.hidden } })} className={cn("p-1 rounded hover:bg-[#333]", element.hidden ? "text-[#666]" : "text-[#ccc]")}><Eye size={12} /></button>
+                        <button onClick={() => updateProject({ ...elements, [element.id]: { ...element, locked: !element.locked } })} className={cn("p-1 rounded hover:bg-[#444]", element.locked ? "text-red-400" : "text-[#666]")}><Lock size={12} /></button>
+                        <button onClick={() => updateProject({ ...elements, [element.id]: { ...element, hidden: !element.hidden } })} className={cn("p-1 rounded hover:bg-[#444]", element.hidden ? "text-[#666]" : "text-[#ccc]")}><Eye size={12} /></button>
                     </div>
                 </div>
                 <div className="flex gap-2">
                     <input
                         value={element.name}
                         onChange={(e) => updateProject({ ...elements, [element.id]: { ...element, name: e.target.value } })}
-                        className="w-full bg-transparent text-sm font-bold text-white focus:bg-[#252526] px-1 rounded outline-none border border-transparent focus:border-[#007acc] transition-all"
+                        className="w-full bg-transparent text-sm font-bold text-white focus:bg-[#3d3d3d] px-1 rounded outline-none border border-transparent focus:border-[#007acc] transition-all"
                     />
                 </div>
             </div>
 
             {/* TABS */}
-            <div className="flex border-b border-[#252526] bg-[#1e1e1e]">
+            <div className="flex border-b border-[#252526] bg-[#333333]">
                 <TabButton active={activeTab === 'design'} onClick={() => setActiveTab('design')} icon={Layout} label="Design" />
                 <TabButton active={activeTab === 'interact'} onClick={() => setActiveTab('interact')} icon={MousePointer2} label="Interact" />
                 <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} icon={Settings} label="Settings" />
@@ -286,36 +253,6 @@ export const RightSidebar = () => {
                             </Row>
                         </div>
 
-                        {/* DESIGN STATE SELECTOR */}
-                        <div className="p-3 border-b border-[#252526]">
-                            <label className="text-[9px] text-[#666] uppercase font-semibold mb-2 block">Design State</label>
-                            <div className="flex bg-[#252526] p-0.5 rounded border border-[#3e3e42]">
-                                {(['base', 'hover', 'focus'] as DesignState[]).map(state => (
-                                    <button
-                                        key={state}
-                                        onClick={() => setDesignState(state)}
-                                        className={cn(
-                                            "flex-1 py-1.5 text-[10px] uppercase font-bold rounded transition-all flex items-center justify-center gap-1",
-                                            designState === state
-                                                ? "bg-[#333] text-white shadow-sm"
-                                                : "text-[#666] hover:text-[#999]"
-                                        )}
-                                    >
-                                        {state === 'base' && <Monitor size={10} />}
-                                        {state === 'hover' && <Hand size={10} />}
-                                        {state === 'focus' && <Eye size={10} />}
-                                        {state}
-                                    </button>
-                                ))}
-                            </div>
-                            {designState !== 'base' && (
-                                <div className="mt-2 text-[10px] text-amber-500/80 bg-amber-500/10 p-2 rounded border border-amber-500/20 flex items-start gap-2">
-                                    <Sparkles size={12} className="mt-0.5 flex-shrink-0" />
-                                    <span>Editing <strong>{designState}:</strong> styles</span>
-                                </div>
-                            )}
-                        </div>
-
                         {/* LAYOUT */}
                         <Section title="Layout">
                             <div className="grid grid-cols-2 gap-2 mb-2">
@@ -329,6 +266,10 @@ export const RightSidebar = () => {
                                 </div>
                             )}
 
+                            <div className="mb-3">
+                                <NumberInput label="Z-Index" value={getVal(style.zIndex, 0)} onChange={(v: number) => updateStyle('zIndex', v)} />
+                            </div>
+
                             <div className="h-px bg-[#2a2a2c] my-3" />
 
                             <Row label="Display">
@@ -337,6 +278,26 @@ export const RightSidebar = () => {
                                     options={[{ value: 'canvas', icon: <Maximize size={12} /> }, { value: 'flex', icon: <Box size={12} /> }, { value: 'grid', icon: <Grid size={12} /> }]}
                                 />
                             </Row>
+
+                            {/* GRID CONTROLS */}
+                            {element.props.layoutMode === 'grid' && (
+                                <div className="mt-2 space-y-2 p-2 bg-[#252526] rounded border border-[#3e3e42]">
+                                    <div className="text-[9px] text-[#888] font-bold uppercase mb-2">Grid Template</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <NumberInput
+                                            label="Cols"
+                                            value={parseInt(String(style.gridTemplateColumns || '').match(/repeat\((\d+)/)?.[1] || '1')}
+                                            onChange={(v: number) => handleGridChange('gridTemplateColumns', v)}
+                                        />
+                                        <NumberInput
+                                            label="Rows"
+                                            value={parseInt(String(style.gridTemplateRows || '').match(/repeat\((\d+)/)?.[1] || '1')}
+                                            onChange={(v: number) => handleGridChange('gridTemplateRows', v)}
+                                        />
+                                    </div>
+                                    <Row label="Gap"><NumberInput value={getVal(style.gap, 0)} onChange={(v: number) => updateStyle('gap', v)} /></Row>
+                                </div>
+                            )}
 
                             {/* FLEX CONTROLS */}
                             {element.props.layoutMode === 'flex' && (
@@ -435,7 +396,7 @@ export const RightSidebar = () => {
                             </Section>
                         )}
 
-                        {/* FILL & GRADIENT (NEW GRADIENT PICKER) */}
+                        {/* FILL & GRADIENT */}
                         <Section title="Fill & Gradient">
                             <div className="flex bg-[#252526] p-0.5 rounded border border-[#3e3e42] mb-3">
                                 <button onClick={() => setFillMode('solid')} className={cn("flex-1 py-1 rounded text-[10px] font-medium transition-all", fillMode === 'solid' ? "bg-[#3e3e42] text-white" : "text-[#858585]")}><PaintBucket size={10} className="inline mr-1" />Solid</button>
@@ -480,7 +441,7 @@ export const RightSidebar = () => {
                             )}
                         </Section>
 
-                        {/* BORDERS (Individual Corners) */}
+                        {/* BORDERS */}
                         <Section title="Border Radius">
                             <div className="grid grid-cols-2 gap-2 mb-3">
                                 <InputUnit label="TL" icon={CornerUpLeft} value={getVal(style.borderTopLeftRadius)} onChange={(v) => updateStyle('borderTopLeftRadius', v)} />
@@ -498,7 +459,7 @@ export const RightSidebar = () => {
                             </div>
                         </Section>
 
-                        {/* EFFECTS & GLASSMORPHISM */}
+                        {/* EFFECTS */}
                         <Section title="Effects & Glassmorphism">
                             <div className="space-y-4">
                                 <RangeControl label="Opacity" value={Math.round((style.opacity !== undefined ? parseFloat(String(style.opacity)) : 1) * 100)} max={100} onChange={(v) => updateStyle('opacity', v / 100)} unit="%" />
@@ -519,12 +480,63 @@ export const RightSidebar = () => {
                                     )}
                                 </div>
                             </div>
+                        </Section>
 
-                            <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-[#333]">
-                                <NumberInput label="Rotate" value={getVal(style.rotate, 0)} onChange={(v: number) => updateStyle('rotate', `${v}deg`)} />
-                                <NumberInput label="Scale" value={Number(style.scale) || 1} onChange={(v: number) => updateStyle('scale', v)} step={0.1} />
+                        {/* TRANSFORMS */}
+                        <Section title="Transforms">
+                            <div className="grid grid-cols-2 gap-3">
+                                {/* Rotation */}
+                                <InputUnit
+                                    label="Rotate"
+                                    icon={RotateCw}
+                                    unit="°"
+                                    value={rotate}
+                                    onChange={(v: number) => { setRotate(v); setTimeout(updateTransform, 0); }}
+                                />
+                                {/* Scale */}
+                                <InputUnit
+                                    label="Scale"
+                                    icon={Maximize}
+                                    step={0.1}
+                                    value={scale}
+                                    onChange={(v: number) => { setScale(v); setTimeout(updateTransform, 0); }}
+                                />
+                                {/* Skew X */}
+                                <InputUnit
+                                    label="Skew X"
+                                    icon={MoveHorizontal}
+                                    unit="°"
+                                    value={skewX}
+                                    onChange={(v: number) => { setSkewX(v); setTimeout(updateTransform, 0); }}
+                                />
+                                {/* Skew Y */}
+                                <InputUnit
+                                    label="Skew Y"
+                                    icon={MoveVertical}
+                                    unit="°"
+                                    value={skewY}
+                                    onChange={(v: number) => { setSkewY(v); setTimeout(updateTransform, 0); }}
+                                />
                             </div>
-                            <div className="mt-2"><Row label="Z-Index"><NumberInput value={getVal(style.zIndex, 0)} onChange={(v: number) => updateStyle('zIndex', v)} /></Row></div>
+
+                            {/* Translate */}
+                            <div className="mt-3 bg-[#2a2a2c] p-2 rounded border border-[#333]">
+                                <div className="text-[9px] text-[#888] uppercase font-bold mb-2 flex items-center gap-1">
+                                    <Move size={10} /> Translate
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <NumberInput
+                                        label="X"
+                                        value={translateX}
+                                        onChange={(v: number) => { setTranslateX(v); setTimeout(updateTransform, 0); }}
+                                    />
+                                    <NumberInput
+                                        label="Y"
+                                        value={translateY}
+                                        onChange={(v: number) => { setTranslateY(v); setTimeout(updateTransform, 0); }}
+                                    />
+                                </div>
+                            </div>
                         </Section>
                     </>
                 )}
@@ -608,7 +620,7 @@ export const RightSidebar = () => {
                                             { value: '', label: '— No Action —' },
                                             ...pages.map(p => ({
                                                 value: p.slug,
-                                                label: `Navigate to: ${p.name}`
+                                                label: `Maps to: ${p.name}`
                                             }))
                                         ]}
                                     />

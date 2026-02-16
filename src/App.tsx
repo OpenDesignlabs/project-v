@@ -10,7 +10,7 @@ const LeftSidebar = lazy(() => import('./components/LeftSidebar').then(module =>
 const RightSidebar = lazy(() => import('./components/RightSidebar').then(module => ({ default: module.RightSidebar })));
 const Canvas = lazy(() => import('./components/Canvas').then(module => ({ default: module.Canvas })));
 const ImportModal = lazy(() => import('./components/ImportModal').then(module => ({ default: module.ImportModal })));
-
+const MagicBar = lazy(() => import('./components/MagicBar').then(module => ({ default: module.MagicBar })));
 // --- MONOCHROME ANIMATED LOGO ---
 const VectraAnimatedLogo = () => (
   <svg width="120" height="120" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="animate-[logo-float_3s_ease-in-out_infinite]">
@@ -107,8 +107,8 @@ const EditorLayout = () => {
       if (e.key === 'Escape') { if (isImportOpen) setIsImportOpen(false); else setSelectedId(null); }
       if (e.key === 'i' && !isTyping && !e.ctrlKey && !e.metaKey) { e.preventDefault(); setActivePanel(prev => prev === 'add' ? null : 'add'); }
       if ((e.ctrlKey || e.metaKey) && e.key === 'i' && !isTyping) { e.preventDefault(); setIsImportOpen(true); }
-    };
 
+    };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [history, deleteElement, selectedId, setSelectedId, isImportOpen]);
@@ -129,6 +129,7 @@ const EditorLayout = () => {
   return (
     <div className="h-screen w-full flex flex-col bg-[#1e1e1e] overflow-hidden select-none font-sans">
       <Suspense fallback={<LoadingScreen message="Loading Interface..." />}>
+        <MagicBar />
         <Header />
         <div className="flex-1 flex overflow-hidden relative">
           <LeftSidebar />

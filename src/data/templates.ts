@@ -6,7 +6,7 @@ import {
     type LucideIcon
 } from 'lucide-react';
 
-interface TemplateConfig {
+export interface TemplateConfig {
     rootId: string;
     nodes: VectraProject;
     name: string;
@@ -242,5 +242,5 @@ export const TEMPLATES: Record<string, TemplateConfig> = {
             'tm3_n': { id: 'tm3_n', type: 'text', name: 'N3', content: 'Sarah L.', props: { className: 'text-lg font-bold text-center mt-4', style: { position: 'absolute', left: '0px', top: '220px', width: '250px', height: '30px' } } },
             'tm3_r': { id: 'tm3_r', type: 'text', name: 'R3', content: 'Manager', props: { className: 'text-sm text-slate-500 text-center', style: { position: 'absolute', left: '0px', top: '250px', width: '250px', height: '20px' } } },
         }
-    }
+    },
 };

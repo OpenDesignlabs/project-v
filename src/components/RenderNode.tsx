@@ -1,10 +1,12 @@
 import React, { useRef, useState, useEffect, Suspense, lazy } from 'react';
 import { useEditor } from '../context/EditorContext';
+import type { VectraProject, VectraNode } from '../types';
 import { TEMPLATES } from '../data/templates';
 import { Resizer } from './Resizer';
 import { cn } from '../lib/utils';
 import { Loader2, Plus, PlayCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getIconComponent } from '../data/iconRegistry';
 
 // --- LAZY LOAD MARKETPLACE COMPONENTS ---
 const GeometricShapesBackground = lazy(() => import('./marketplace/GeometricShapes').then(m => ({ default: m.GeometricShapesBackground })));
@@ -244,6 +246,62 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
             updateProject(newElements);
             setSelectedId(newId);
         }
+        // Handle Icon drops from Icon Explorer
+        else if (dragData.type === 'ICON') {
+            const newId = `icon-${Date.now()}`;
+            const iconSize = 48;
+
+            const newNode = {
+                id: newId,
+                type: 'icon',
+                name: dragData.payload, // Stores Icon Name like 'Activity'
+                children: [],
+                props: {
+                    iconName: dragData.payload,
+                    className: 'text-slate-900',
+                    style: {
+                        position: (element.props.layoutMode === 'flex' ? 'relative' : 'absolute') as any,
+                        left: element.props.layoutMode === 'flex' ? 'auto' : `${Math.round(dropX - iconSize / 2)}px`,
+                        top: element.props.layoutMode === 'flex' ? 'auto' : `${Math.round(dropY - iconSize / 2)}px`,
+                        width: `${iconSize}px`,
+                        height: `${iconSize}px`,
+                        color: 'inherit'
+                    }
+                }
+            };
+
+            const newElements = { ...elements, [newId]: newNode };
+            newElements[elementId].children = [...(newElements[elementId].children || []), newId];
+            updateProject(newElements);
+            setSelectedId(newId);
+        }
+        else if (dragData.type === 'DATA_BINDING') {
+            const newId = `data-${Date.now()}`;
+            const isFlex = element.props.layoutMode === 'flex';
+
+            const newNode: VectraNode = {
+                id: newId,
+                type: 'text',
+                name: dragData.payload,
+                children: [],
+                props: {
+                    className: 'text-blue-600 font-mono bg-blue-50 px-2 py-1 rounded border border-blue-200 text-sm inline-block',
+                    style: {
+                        position: isFlex ? 'relative' : 'absolute',
+                        left: isFlex ? 'auto' : `${Math.round(dropX)}px`,
+                        top: isFlex ? 'auto' : `${Math.round(dropY)}px`,
+                        width: 'auto',
+                        height: 'auto'
+                    }
+                },
+                content: `{{${dragData.payload}}}`
+            };
+
+            const newElements: VectraProject = { ...elements, [newId]: newNode };
+            newElements[elementId].children = [...(newElements[elementId].children || []), newId];
+            updateProject(newElements);
+            setSelectedId(newId);
+        }
 
         setDragData(null);
     };
@@ -251,28 +309,38 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
     let finalStyle: React.CSSProperties = { ...element.props.style };
     let finalClass = element.props.className || '';
 
-    const transformParts: string[] = [];
-    if (finalStyle.rotate) transformParts.push(`rotate(${finalStyle.rotate})`);
-
-    let currentScale = parseFloat(String(finalStyle.scale || 1));
-
-    const hoverEffect = element.props.hoverEffect;
-    if (hoverEffect && hoverEffect !== 'none') {
-        finalStyle.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-
-        if (isVisualHover && !interaction) {
-            if (hoverEffect === 'lift') transformParts.push('translateY(-8px)');
-            if (hoverEffect === 'scale') currentScale *= 1.05;
-            if (hoverEffect === 'glow') finalStyle.boxShadow = '0 10px 40px -10px rgba(0,122,204,0.5)';
-            if (hoverEffect === 'border') finalStyle.borderColor = '#007acc';
-            if (hoverEffect === 'opacity') finalStyle.opacity = 0.7;
-        }
+    // Part 3: Grid layout support
+    if (element.props.layoutMode === 'grid') {
+        finalStyle.display = 'grid';
     }
 
-    if (currentScale !== 1) transformParts.push(`scale(${currentScale})`);
-    if (transformParts.length > 0) finalStyle.transform = transformParts.join(' ');
+    // Part 3: Transform handling - prioritize explicit transform string
+    const hasExplicitTransform = finalStyle.transform && finalStyle.transform !== 'none';
 
-    if (!interaction && !hoverEffect) {
+    if (!hasExplicitTransform) {
+        // Legacy fallback for old rotate/scale props
+        const transformParts: string[] = [];
+        if (finalStyle.rotate) transformParts.push(`rotate(${finalStyle.rotate})`);
+        let currentScale = parseFloat(String(finalStyle.scale || 1));
+
+        const hoverEffect = element.props.hoverEffect;
+        if (hoverEffect && hoverEffect !== 'none') {
+            finalStyle.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+
+            if (isVisualHover && !interaction) {
+                if (hoverEffect === 'lift') transformParts.push('translateY(-8px)');
+                if (hoverEffect === 'scale') currentScale *= 1.05;
+                if (hoverEffect === 'glow') finalStyle.boxShadow = '0 10px 40px -10px rgba(0,122,204,0.5)';
+                if (hoverEffect === 'border') finalStyle.borderColor = '#007acc';
+                if (hoverEffect === 'opacity') finalStyle.opacity = 0.7;
+            }
+        }
+
+        if (currentScale !== 1) transformParts.push(`scale(${currentScale})`);
+        if (transformParts.length > 0) finalStyle.transform = transformParts.join(' ');
+    }
+
+    if (!interaction && !element.props.hoverEffect) {
         finalStyle.transition = 'background-color 0.2s, color 0.2s, opacity 0.2s, transform 0.2s, border-radius 0.2s, border-width 0.2s';
     } else if (interaction) {
         finalStyle.transition = 'none';
@@ -353,6 +421,11 @@ export const RenderNode: React.FC<RenderNodeProps> = ({ elementId, isMobileMirro
                 <span className="text-[10px] font-bold tracking-widest uppercase text-slate-900 opacity-40">Video Player</span>
             </div>
         );
+    }
+    // ICONS (from Icon Explorer)
+    else if (element.type === 'icon') {
+        const IconComp = getIconComponent(element.props.iconName || element.name || 'HelpCircle');
+        content = <IconComp className="w-full h-full" strokeWidth={1.5} />;
     }
     // CONTAINERS / PAGES
     else {

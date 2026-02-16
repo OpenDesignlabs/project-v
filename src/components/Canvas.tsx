@@ -10,7 +10,8 @@ export const Canvas = () => {
         previewMode, setSelectedId, isPanning, setIsPanning,
         interaction, setInteraction, handleInteractionMove,
         guides, dragData, setDragData, elements, updateProject,
-        instantiateTemplate, componentRegistry // <--- USE REGISTRY
+        instantiateTemplate, componentRegistry, // <--- USE REGISTRY
+        isInsertDrawerOpen, toggleInsertDrawer // <--- ADD DRAWER STATE
     } = useEditor();
 
     const canvasRef = useRef<HTMLDivElement>(null);
@@ -58,6 +59,7 @@ export const Canvas = () => {
     }, [isPanning, interaction, handleInteractionMove, setPan, setInteraction, spacePressed, previewMode]);
 
     // --- 2. DROP LOGIC ---
+    // --- 2. DROP LOGIC ---
     const handleGlobalDrop = (e: React.DragEvent) => {
         e.preventDefault();
         if (!dragData || previewMode) return;
@@ -66,6 +68,34 @@ export const Canvas = () => {
         if (!rect) return;
         const worldX = (e.clientX - rect.left - pan.x) / zoom;
         const worldY = (e.clientY - rect.top - pan.y) / zoom;
+
+        // --- NEW: DATA BINDING DROP ON ELEMENT ---
+        if (dragData.type === 'DATA_BINDING') {
+            const candidates = Object.values(elements)
+                .filter(el => {
+                    const style = el.props.style;
+                    if (!style || !style.left || !style.top) return false;
+                    const x = parseFloat(String(style.left));
+                    const y = parseFloat(String(style.top));
+                    const w = parseFloat(String(style.width)) || 100;
+                    const h = parseFloat(String(style.height)) || 50;
+                    return worldX >= x && worldX <= x + w && worldY >= y && worldY <= y + h;
+                })
+                .sort((a, b) => (Number(b.props.style?.zIndex) || 0) - (Number(a.props.style?.zIndex) || 0));
+
+            if (candidates.length > 0) {
+                const targetId = candidates[0].id;
+                const newProject = { ...elements };
+                newProject[targetId] = {
+                    ...newProject[targetId],
+                    content: `{{${dragData.payload}}}`
+                };
+                updateProject(newProject);
+                setDragData(null);
+                setSelectedId(targetId);
+                return;
+            }
+        }
 
         let newNodes: Record<string, any> = {};
         let newRootId = '';
@@ -78,8 +108,24 @@ export const Canvas = () => {
             newNodes = res.newNodes; newRootId = res.rootId;
             w = parseFloat(String(newNodes[newRootId].props.style?.width || 0));
             h = parseFloat(String(newNodes[newRootId].props.style?.height || 0));
+        } else if (dragData.type === 'ICON') {
+            newRootId = `icon-${Date.now()}`;
+            w = 48; h = 48;
+            newNodes[newRootId] = {
+                id: newRootId, type: 'icon', name: 'Icon', children: [],
+                props: { iconName: dragData.meta?.iconName, style: { width: '48px', height: '48px' }, className: 'text-blue-500' }
+            };
+        } else if (dragData.type === 'ASSET_IMAGE' || (dragData.type === 'NEW' && dragData.payload === 'image')) {
+            newRootId = `img-${Date.now()}`;
+            w = 300; h = 200;
+            const src = dragData.type === 'ASSET_IMAGE' ? dragData.payload : (componentRegistry['image']?.src || 'https://via.placeholder.com/400x300');
+            newNodes[newRootId] = {
+                id: newRootId, type: 'image', name: 'Image', children: [],
+                props: { style: { width: '300px', height: '200px', borderRadius: '8px' }, className: 'object-cover' },
+                src: src
+            };
         } else if (dragData.type === 'NEW') {
-            const conf = componentRegistry[dragData.payload]; // FIX: Use registry
+            const conf = componentRegistry[dragData.payload];
             if (!conf) return;
             newRootId = `el-${Date.now()}`;
             w = dragData.payload === 'webpage' ? 1200 : 200;
@@ -98,13 +144,16 @@ export const Canvas = () => {
                 left: `${Math.round(worldX - w / 2)}px`,
                 top: `${Math.round(worldY - h / 2)}px`
             };
+
+            const newProject = { ...elements, ...newNodes };
+            if (newProject[activePageId]) {
+                newProject[activePageId].children = [...(newProject[activePageId].children || []), newRootId];
+            }
+            updateProject(newProject);
+            setSelectedId(newRootId);
         }
 
-        const newProject = { ...elements, ...newNodes };
-        if (newProject[activePageId]) newProject[activePageId].children = [...(newProject[activePageId].children || []), newRootId];
-        updateProject(newProject);
         setDragData(null);
-        setSelectedId(newRootId);
     };
 
     return (
@@ -112,7 +161,11 @@ export const Canvas = () => {
             ref={canvasRef}
             className="flex-1 bg-[#1e1e1e] relative overflow-hidden cursor-default select-none"
             style={{ cursor: isPanning || spacePressed ? 'grab' : 'default' }}
-            onMouseDown={() => setSelectedId(null)}
+            onMouseDown={() => {
+                setSelectedId(null);
+                // Auto-collapse Insert Drawer when clicking canvas
+                if (isInsertDrawerOpen) toggleInsertDrawer();
+            }}
             onDrop={handleGlobalDrop}
             onDragOver={(e) => e.preventDefault()}
         >

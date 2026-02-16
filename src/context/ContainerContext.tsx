@@ -1,11 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { WebContainer } from '@webcontainer/api';
 import { VITE_REACT_TEMPLATE } from '../data/fileSystemTemplates';
 
-// Global singleton to prevent double-boot
-let bootPromise: Promise<WebContainer> | null = null;
-
-// Define more granular statuses for the loading screen
 export type ContainerStatus = 'booting' | 'mounting' | 'installing' | 'starting_server' | 'ready' | 'error';
 
 interface ContainerContextType {
@@ -14,99 +10,160 @@ interface ContainerContextType {
     terminalOutput: string[];
     url: string | null;
     writeFile: (path: string, content: string) => Promise<void>;
-    readFile: (path: string) => Promise<string>;
+    removeFile: (path: string) => Promise<void>;
+    fileTree: Record<string, any>;
+    installPackage: (packageName: string) => Promise<void>;
 }
 
 const ContainerContext = createContext<ContainerContextType | undefined>(undefined);
+
+// Global Singleton to persist across re-renders
+let bootPromise: Promise<WebContainer> | null = null;
 
 export const ContainerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [instance, setInstance] = useState<WebContainer | null>(null);
     const [status, setStatus] = useState<ContainerStatus>('booting');
     const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
     const [url, setUrl] = useState<string | null>(null);
+    const [fileTree, setFileTree] = useState<Record<string, any>>({});
+
+    // Safety guard for React Strict Mode
+    const isInitialized = useRef(false);
 
     const log = useCallback((msg: string) => {
         setTerminalOutput(prev => [...prev.slice(-100), msg]);
+        console.log(`[WebContainer] ${msg}`);
     }, []);
 
-    // --- THE AUTOMATED STARTUP SEQUENCE ---
     useEffect(() => {
-        if (instance || status === 'ready' || status === 'error') return;
+        // Prevent double-initialization
+        if (isInitialized.current) return;
+        isInitialized.current = true;
 
-        async function runFullStartupSequence() {
+        const boot = async () => {
             try {
-                // === STEP 1: BOOT KERNEL ===
-                log("⚡ System: Initializing WebContainer Kernel...");
+                log("⚡ Booting Kernel...");
                 if (!bootPromise) bootPromise = WebContainer.boot();
-                const webcontainer = await bootPromise;
-                setInstance(webcontainer);
+                const wc = await bootPromise;
+                setInstance(wc);
 
-                // === STEP 2: MOUNT FILES ===
                 setStatus('mounting');
-                log("📁 System: Mounting template files...");
-                await webcontainer.mount(VITE_REACT_TEMPLATE);
+                log("📂 Mounting File System...");
+                // TEMPORARY FIX: Cast VITE_REACT_TEMPLATE to any or FileSystemTree to satisfy the type checker if needed
+                // The explicit type in fileSystemTemplates.ts should handle this, but being safe.
+                await wc.mount(VITE_REACT_TEMPLATE);
 
-                // === STEP 3: INSTALL DEPENDENCIES ===
                 setStatus('installing');
-                log("> pnpm install (This may take a moment...)");
-                const installProcess = await webcontainer.spawn('pnpm', ['install']);
-
-                // Use a WritableStream to log output
-                installProcess.output.pipeTo(new WritableStream({
-                    write(data) { log(data); }
-                }));
-
-                const installExitCode = await installProcess.exit;
-                if (installExitCode !== 0) {
-                    log("⚠️ Install failed due to network restrictions. Attempting to run with CDN fallbacks...");
-                } else {
-                    log("✅ Dependencies installed.");
+                log("📦 Installing Dependencies...");
+                const install = await wc.spawn('pnpm', ['install']);
+                install.output.pipeTo(new WritableStream({ write: d => log(d) }));
+                if ((await install.exit) !== 0) {
+                    log("⚠️ Install Warning (proceeding anyway)...");
                 }
 
-                // === STEP 4: START DEV SERVER ===
                 setStatus('starting_server');
-                log("> pnpm run dev");
-                const devProcess = await webcontainer.spawn('pnpm', ['run', 'dev']);
+                log("🚀 Starting Server...");
+                const dev = await wc.spawn('pnpm', ['run', 'dev']);
+                dev.output.pipeTo(new WritableStream({ write: d => log(d) }));
 
-                devProcess.output.pipeTo(new WritableStream({
-                    write(data) { log(data); }
-                }));
-
-                // === STEP 5: WAIT FOR SERVER READY ===
-                log("⏳ Waiting for server to listen...");
-                webcontainer.on('server-ready', (_, serverUrl) => {
-                    log(`🚀 Server ready at ${serverUrl}`);
-                    setUrl(serverUrl);
-                    // FINAL STATE: Only now do we show the editor
+                wc.on('server-ready', (_, url) => {
+                    setUrl(url);
                     setStatus('ready');
+                    log(`✅ Server Ready: ${url}`);
                 });
 
             } catch (e) {
-                console.error("Startup failed:", e);
-                log(`❌ Critical Error: ${e instanceof Error ? e.message : 'Unknown error'}`);
+                console.error(e);
                 setStatus('error');
+                log(`❌ Error: ${e}`);
             }
-        }
+        };
 
-        runFullStartupSequence();
-    }, [instance, log, status]);
+        boot();
+    }, [log]);
 
     const writeFile = useCallback(async (path: string, content: string) => {
         if (!instance) return;
-        await instance.fs.writeFile(path, content);
+
+        try {
+            await instance.fs.writeFile(path, content);
+        } catch (error) {
+            // Retry with directory creation
+            try {
+                const parts = path.split('/');
+                parts.pop(); // Remove filename
+                const dir = parts.join('/');
+                if (dir) {
+                    await instance.fs.mkdir(dir, { recursive: true });
+                    await instance.fs.writeFile(path, content);
+                }
+            } catch (retryError) {
+                console.error(`[VFS] Failed to write ${path}:`, retryError);
+            }
+        }
     }, [instance]);
 
-    const readFile = useCallback(async (path: string) => {
-        if (!instance) return "";
-        const bytes = await instance.fs.readFile(path);
-        return new TextDecoder().decode(bytes);
+    const removeFile = useCallback(async (path: string) => {
+        if (!instance) return;
+        try {
+            await instance.fs.rm(path, { recursive: true, force: true });
+        } catch (error) {
+            console.error(`[VFS] Failed to remove ${path}:`, error);
+        }
     }, [instance]);
+
+    const installPackage = useCallback(async (packageName: string) => {
+        if (!instance) return;
+        try {
+            log(`📦 Installing ${packageName}...`);
+            const install = await instance.spawn('pnpm', ['install', packageName]);
+            install.output.pipeTo(new WritableStream({ write: d => log(d) }));
+            const exitCode = await install.exit;
+            if (exitCode === 0) {
+                log(`✅ ${packageName} installed successfully`);
+            } else {
+                log(`⚠️ ${packageName} installation failed`);
+            }
+        } catch (error) {
+            log(`❌ Error installing ${packageName}: ${error}`);
+        }
+    }, [instance, log]);
+
+    const readFileTree = useCallback(async () => {
+        if (!instance || status !== 'ready') return;
+        try {
+            const buildTree = async (path: string): Promise<any> => {
+                const entries = await instance.fs.readdir(path, { withFileTypes: true });
+                const tree: any = {};
+                for (const entry of entries) {
+                    if (entry.name === 'node_modules' || entry.name === '.git') continue;
+                    const fullPath = path === '/' ? `/${entry.name}` : `${path}/${entry.name}`;
+                    if (entry.isDirectory()) {
+                        tree[entry.name] = {
+                            type: 'folder',
+                            children: await buildTree(fullPath)
+                        };
+                    } else {
+                        tree[entry.name] = { type: 'file' };
+                    }
+                }
+                return tree;
+            };
+            const tree = await buildTree('/');
+            setFileTree(tree);
+        } catch (error) {
+            console.error('[VFS] Failed to read file tree:', error);
+        }
+    }, [instance, status]);
+
+    useEffect(() => {
+        if (status === 'ready') {
+            readFileTree();
+        }
+    }, [status, readFileTree]);
 
     return (
-        <ContainerContext.Provider value={{
-            instance, status, terminalOutput, url,
-            writeFile, readFile
-        }}>
+        <ContainerContext.Provider value={{ instance, status, terminalOutput, url, writeFile, removeFile, fileTree, installPackage }}>
             {children}
         </ContainerContext.Provider>
     );
